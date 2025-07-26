@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/* 🎨 Warna & Font Global */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  --primary: #0066cc; /* Biru utama (laut) */
+  --secondary: #00bcd4; /* Cyan terang */
+  --accent: #3399ff; /* Aksen biru muda */
+  --muted: #999999; /* Teks sekunder */
+  --surface: #f4f8fb; /* Latar elemen */
+
+  --font-main: "Inter", sans-serif;
+}
+
+/* 🌙 Dark Mode (jika OS user aktifkan) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* 🔤 Gaya Umum Halaman */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-main), Arial, Helvetica, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 🔘 Tombol Utama */
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #005bb5;
+}
+
+/* 🧱 Kartu / Box */
+.card {
+  background-color: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Gunakan Tailwind classes untuk mengatur posisi control Leaflet */
+.leaflet-top.leaflet-right .leaflet-control {
+  @apply mt-16 mr-4;
+}
+
+.leaflet-top.leaflet-left .leaflet-control {
+  @apply mt-16 ml-4;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control {
+  @apply mb-4 ml-4;
+}
+
+.leaflet-bottom.leaflet-right .leaflet-control {
+  @apply mb-4 mr-4;
+}
+
+html,
+body,
+#__next {
+  height: 100%;
+}
+
+.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+/* Tambahkan ke global CSS */
+.resizable-panel {
+  resize: vertical;
+  overflow: auto;
+  min-height: 100px;
+  max-height: 80vh;
+}
+
+@keyframes ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
