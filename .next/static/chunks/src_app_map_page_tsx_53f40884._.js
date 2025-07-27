@@ -1,0 +1,32 @@
+(globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({
+    script: typeof document === "object" ? document.currentScript : undefined,
+    chunks: [
+  "static/chunks/_759be1c9._.js",
+  "static/chunks/src_a086976c._.js",
+  "static/chunks/node_modules_next_c1549672._.js",
+  "static/chunks/node_modules_chart_js_dist_fe1f3c5e._.js",
+  "static/chunks/node_modules_zrender_lib_fafda772._.js",
+  "static/chunks/node_modules_echarts_lib_util_a308687b._.js",
+  "static/chunks/node_modules_echarts_lib_model_17555d63._.js",
+  "static/chunks/node_modules_echarts_lib_core_53ac75c6._.js",
+  "static/chunks/node_modules_echarts_lib_data_a581d853._.js",
+  "static/chunks/node_modules_echarts_lib_1c6ec7a6._.js",
+  "static/chunks/node_modules_claygl_src_a2f673db._.js",
+  "static/chunks/node_modules_echarts-gl_127fd0bc._.js",
+  "static/chunks/node_modules_@tanstack_table-core_build_lib_index_mjs_dc7bc5d7._.js",
+  "static/chunks/node_modules_@mui_system_esm_378f5201._.js",
+  "static/chunks/node_modules_@mui_material_esm_Slider_371705ec._.js",
+  "static/chunks/node_modules_@mui_material_esm_ae5f21a6._.js",
+  "static/chunks/node_modules_@popperjs_core_lib_229f7621._.js",
+  "static/chunks/node_modules_@mui_x-date-pickers_esm_internals_887acad4._.js",
+  "static/chunks/node_modules_@mui_x-date-pickers_esm_PickersTextField_669dd4d1._.js",
+  "static/chunks/node_modules_@mui_x-date-pickers_esm_a8a3683d._.js",
+  "static/chunks/node_modules_material-react-table_dist_index_esm_dd6270be.js",
+  "static/chunks/node_modules_framer-motion_dist_es_1315c24f._.js",
+  "static/chunks/node_modules_motion-dom_dist_es_fa3ea29e._.js",
+  "static/chunks/node_modules_react-icons_md_index_mjs_78df2b41._.js",
+  "static/chunks/node_modules_react-icons_lib_74ccc930._.js",
+  "static/chunks/node_modules_c756257e._.js"
+],
+    source: "dynamic"
+});
