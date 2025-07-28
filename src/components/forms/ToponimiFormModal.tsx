@@ -38,7 +38,7 @@ export default function ToponimiFormModal({ latlng, onClose, onSubmit, onCancelM
   return (
     // Gunakan z-index yang cukup tinggi, misalnya z-50
     // bg-black bg-opacity-30 membuat latar belakang hitam dengan opacity 30%
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-30 flex items-center justify-center p-4 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="bg-white bg-opacity-90 rounded-2xl shadow-xl overflow-hidden w-full max-w-md transform transition-all border border-gray-200">
         {/* Header Modal */}
         <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">

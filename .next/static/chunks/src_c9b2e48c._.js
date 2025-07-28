@@ -131,7 +131,7 @@ function ToponimiFormModal({ latlng, onClose, onSubmit, onCancelMarker }) {
     return(// Gunakan z-index yang cukup tinggi, misalnya z-50
     // bg-black bg-opacity-30 membuat latar belakang hitam dengan opacity 30%
     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "fixed inset-0 z-50 bg-black bg-opacity-30 flex items-center justify-center p-4 backdrop-blur-[2px]",
+        className: "fixed inset-0 z-50 flex items-center justify-center p-4",
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
             className: "bg-white bg-opacity-90 rounded-2xl shadow-xl overflow-hidden w-full max-w-md transform transition-all border border-gray-200",
             children: [
