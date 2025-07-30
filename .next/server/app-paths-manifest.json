@@ -1,9 +1,8 @@
 {
-<<<<<<< HEAD
-  "/admin/page": "app/admin/page.js"
-=======
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin/page": "app/admin/page.js",
   "/login/page": "app/login/page.js",
+  "/map/page": "app/map/page.js",
   "/page": "app/page.js",
   "/register/page": "app/register/page.js"
->>>>>>> cab6951482dd5ba7722c9f5e15aedd232727d445
 }

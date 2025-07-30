@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: "user" | "admin";
+  avatarUrl: string;
 }
 
 interface LogEntry {
@@ -18,46 +19,217 @@ interface LogEntry {
 
 export default function AdminPage() {
   const router = useRouter();
-
-  const [users, setUsers] = useState<User[]>([
-    { id: 1, name: "Eleanor Vance", email: "user@example.com", role: "user" },
-    { id: 2, name: "David Kim", email: "admin@example.com", role: "admin" },
-  ]);
-
+  const [users, setUsers] = useState<User[]>([]);
   const [activityLogs, setActivityLogs] = useState<LogEntry[]>([]);
-  const [loginLogs, setLoginLogs] = useState<LogEntry[]>([
-    { timestamp: new Date().toLocaleString(), message: "Admin David Kim login" },
-    { timestamp: new Date().toLocaleString(), message: "User Eleanor Vance login" },
-  ]);
-
   const [showAddForm, setShowAddForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: "", email: "", role: "user", password: "" });
+
+  // 🔐 Cek autentikasi & ambil data user
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    const user = localStorage.getItem("user");
+
+    if (!token || !user) {
+      router.push("/login");
+      return;
+    }
+
+    const currentUser = JSON.parse(user);
+    if (currentUser.role !== "admin") {
+      alert("Akses ditolak: hanya admin yang bisa masuk");
+      router.push("/map");
+      return;
+    }
+
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    const token = localStorage.getItem("authToken");
+    try {
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: `{ users { id username fullName email role avatarUrl } }`,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.users) {
+        const mapped = result.data.users.map((u: any) => ({
+          id: u.id,
+          name: u.fullName || u.username,
+          email: u.email,
+          role: u.role as "user" | "admin",
+          avatarUrl: u.avatarUrl || "/images/user-default.png",
+        }));
+        setUsers(mapped);
+      }
+    } catch (err) {
+      console.error("Gagal ambil data user:", err);
+      alert("Gagal terhubung ke server");
+    }
+  };
 
   const logActivity = (message: string) => {
     const timestamp = new Date().toLocaleString();
     setActivityLogs((prev) => [{ message, timestamp }, ...prev]);
   };
 
-  const logLoginLogout = (message: string) => {
-    const timestamp = new Date().toLocaleString();
-    setLoginLogs((prev) => [{ message, timestamp }, ...prev]);
-  };
-
-  const toggleRole = (id: number) => {
-    setUsers((prev) => prev.map((user) => (user.id === id ? { ...user, role: user.role === "admin" ? "user" : "admin" } : user)));
-    const changed = users.find((u) => u.id === id);
-    const newRole = changed?.role === "admin" ? "user" : "admin";
-    logActivity(`Mengubah role ${changed?.name} menjadi ${newRole}`);
-  };
-
-  const removeUser = (id: number) => {
-    const target = users.find((u) => u.id === id);
-    if (target && confirm(`Yakin ingin menghapus ${target.name}?`)) {
-      setUsers((prev) => prev.filter((u) => u.id !== id));
-      logActivity(`Menghapus user ${target.name}`);
+  const handleLogout = () => {
+    if (confirm("Apakah Anda yakin ingin logout?")) {
+      logActivity("Admin logout");
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("user");
+      router.push("/login");
     }
   };
 
+  // 🔹 Tambah User (via register mutation)
+  const handleAddUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.password) {
+      alert("Semua field harus diisi");
+      return;
+    }
+
+    const token = localStorage.getItem("authToken");
+    try {
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: `
+            mutation Register($name: String!, $email: String!, $password: String!) {
+              register(name: $name, email: $email, password: $password) {
+                success
+                message
+                user {
+                  id
+                  username
+                  fullName
+                  email
+                  role
+                  avatarUrl
+                }
+              }
+            }
+          `,
+          variables: newUser,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.register.success) {
+        const u = result.data.register.user;
+        setUsers((prev) => [
+          ...prev,
+          {
+            id: u.id,
+            name: u.fullName || u.username,
+            email: u.email,
+            role: u.role,
+            avatarUrl: u.avatarUrl,
+          },
+        ]);
+        logActivity(`Menambahkan user ${u.fullName}`);
+        setShowAddForm(false);
+        setNewUser({ name: "", email: "", role: "user", password: "" });
+      } else {
+        alert(result.data?.register.message || "Gagal tambah user");
+      }
+    } catch (err) {
+      console.error("Gagal tambah user:", err);
+      alert("Terjadi kesalahan");
+    }
+  };
+
+  // 🔹 Ubah Role
+  const toggleRole = async (id: string) => {
+    const token = localStorage.getItem("authToken");
+    const target = users.find((u) => u.id === id);
+    if (!target) return;
+
+    const newRole = target.role === "admin" ? "user" : "admin";
+
+    try {
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: `
+            mutation UpdateUserRole($id: ID!, $role: String!) {
+              updateUserRole(id: $id, role: $role) {
+                success
+                message
+              }
+            }
+          `,
+          variables: { id, role: newRole },
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.updateUserRole.success) {
+        setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role: newRole } : u)));
+        logActivity(`Mengubah role ${target.name} menjadi ${newRole}`);
+      } else {
+        alert("Gagal ubah role");
+      }
+    } catch (err) {
+      console.error("Gagal ubah role:", err);
+      alert("Terjadi kesalahan");
+    }
+  };
+
+  // 🔹 Hapus User
+  const removeUser = async (id: string) => {
+    const token = localStorage.getItem("authToken");
+    const target = users.find((u) => u.id === id);
+    if (!target) return;
+
+    if (!confirm(`Yakin ingin menghapus ${target.name}?`)) return;
+
+    try {
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: `
+            mutation DeleteUser($id: ID!) {
+              deleteUser(id: $id)
+            }
+          `,
+          variables: { id },
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.deleteUser) {
+        setUsers((prev) => prev.filter((u) => u.id !== id));
+        logActivity(`Menghapus user ${target.name}`);
+      } else {
+        alert("Gagal hapus user");
+      }
+    } catch (err) {
+      console.error("Gagal hapus user:", err);
+      alert("Terjadi kesalahan");
+    }
+  };
+
+  // 🔹 Export CSV
   const exportCSV = () => {
     const csvContent = "data:text/csv;charset=utf-8," + ["Nama,Email,Role"].concat(users.map((u) => `${u.name},${u.email},${u.role}`)).join("\n");
 
@@ -70,21 +242,6 @@ export default function AdminPage() {
     document.body.removeChild(link);
 
     logActivity("Melakukan ekspor data pengguna ke CSV");
-  };
-
-  const handleLogout = () => {
-    if (confirm("Apakah Anda yakin ingin logout?")) {
-      logLoginLogout("Admin logout");
-      router.push("/login");
-    }
-  };
-
-  const handleAddUser = () => {
-    const newId = Date.now();
-    setUsers([...users, { id: newId, name: newUser.name, email: newUser.email, role: newUser.role as "user" | "admin" }]);
-    logActivity(`Menambahkan user ${newUser.name}`);
-    setShowAddForm(false);
-    setNewUser({ name: "", email: "", role: "user", password: "" });
   };
 
   return (
@@ -135,7 +292,7 @@ export default function AdminPage() {
               {users.map((user) => (
                 <tr key={user.id} className="border-b border-slate-700 hover:bg-slate-700/30">
                   <td className="px-6 py-4 font-medium flex items-center gap-2">
-                    <Image src="/User.svg" alt="User" width={24} height={24} />
+                    <Image src={user.avatarUrl || "/User.svg"} alt="User" width={24} height={24} />
                     {user.name}
                   </td>
                   <td className="px-6 py-4">{user.email}</td>
@@ -158,32 +315,17 @@ export default function AdminPage() {
           </table>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 max-h-72 overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-3">⏱️ Riwayat Aktivitas</h2>
-            {activityLogs.length > 0 ? (
-              activityLogs.map((log, i) => (
-                <p key={i} className="text-sm text-white/80">
-                  {log.timestamp} – {log.message}
-                </p>
-              ))
-            ) : (
-              <p className="text-white/50 italic">Belum ada aktivitas tercatat.</p>
-            )}
-          </div>
-
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 max-h-72 overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-3">🔐 Riwayat Login & Logout</h2>
-            {loginLogs.length > 0 ? (
-              loginLogs.map((log, i) => (
-                <p key={i} className="text-sm text-white/80">
-                  {log.timestamp} – {log.message}
-                </p>
-              ))
-            ) : (
-              <p className="text-white/50 italic">Belum ada log login/logout.</p>
-            )}
-          </div>
+        <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 max-h-72 overflow-y-auto">
+          <h2 className="text-lg font-semibold mb-3">⏱️ Riwayat Aktivitas</h2>
+          {activityLogs.length > 0 ? (
+            activityLogs.map((log, i) => (
+              <p key={i} className="text-sm text-white/80">
+                {log.timestamp} – {log.message}
+              </p>
+            ))
+          ) : (
+            <p className="text-white/50 italic">Belum ada aktivitas tercatat.</p>
+          )}
         </div>
 
         {showAddForm && (
