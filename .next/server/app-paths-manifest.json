@@ -1,3 +1,9 @@
 {
+<<<<<<< HEAD
   "/admin/page": "app/admin/page.js"
+=======
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/register/page": "app/register/page.js"
+>>>>>>> cab6951482dd5ba7722c9f5e15aedd232727d445
 }

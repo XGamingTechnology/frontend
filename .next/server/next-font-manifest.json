@@ -1,6 +1,16 @@
 {
   "app": {
+<<<<<<< HEAD
     "[project]/src/app/admin/page": [
+=======
+    "[project]/src/app/login/page": [
+      "static/media/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw-s.p.0faac26c.woff2"
+    ],
+    "[project]/src/app/page": [
+      "static/media/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw-s.p.0faac26c.woff2"
+    ],
+    "[project]/src/app/register/page": [
+>>>>>>> cab6951482dd5ba7722c9f5e15aedd232727d445
       "static/media/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw-s.p.0faac26c.woff2"
     ]
   },

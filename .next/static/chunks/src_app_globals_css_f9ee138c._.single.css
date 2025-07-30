@@ -1976,6 +1976,12 @@
       line-height: var(--tw-leading, var(--text-xl--line-height));
     }
   }
+
+  @media (prefers-color-scheme: dark) {
+    .dark\:text-black {
+      color: var(--color-black);
+    }
+  }
 }
 
 :root {
