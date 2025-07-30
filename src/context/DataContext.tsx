@@ -2,33 +2,42 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { fetchFeatures } from "@/lib/api/dataService";
 import type { FeatureCollection, Feature, Point } from "geojson";
-import { LayerDefinition, LayerVisibilityState } from "@/types/layers"; // 1. Impor types
 
-// 2. Definisikan interface untuk tipe data echosounder
+// --- Tipe Data ---
 interface EchosounderPoint {
   jarak: number;
   kedalaman: number;
 }
 
+interface LayerDefinition {
+  id: string;
+  name: string;
+  description: string;
+  layerType: string;
+  source: string;
+  meta: Record<string, any>; // ✅ DIPERBAIKI: Tambahkan titik dua (:) di sini
+}
+
+type LayerVisibilityState = Record<string, boolean>;
+
 interface DataContextType {
-  // --- STATE DATA GEOJSON DARI BACKEND ---
+  // --- Data GeoJSON dari backend ---
   features: FeatureCollection | null;
   loading: boolean;
   error: string | null;
   refreshData: () => void;
-  addFeature: (feature: any) => Promise<void>;
+  addFeature: (feature: Feature) => Promise<void>;
 
-  // --- STATE UNTUK MANAJEMEN LAYER ---
-  layerDefinitions: LayerDefinition[] | null; // Daftar definisi layer dari backend
-  layerVisibility: LayerVisibilityState; // State visibilitas layer
-  setLayerVisibility: React.Dispatch<React.SetStateAction<LayerVisibilityState>>; // Fungsi untuk mengubah visibilitas
-  loadingLayers: boolean; // State loading untuk layer
-  errorLayers: string | null; // State error untuk layer
-  refreshLayers: () => void; // Fungsi untuk merefresh daftar layer dari backend
+  // --- Manajemen Layer ---
+  layerDefinitions: LayerDefinition[] | null;
+  layerVisibility: LayerVisibilityState;
+  setLayerVisibility: React.Dispatch<React.SetStateAction<LayerVisibilityState>>;
+  loadingLayers: boolean;
+  errorLayers: string | null;
+  refreshLayers: () => void;
 
-  // --- STATE UNTUK DATA ECHOSOUNDER ---
+  // --- Data Echosounder ---
   echosounderData: EchosounderPoint[];
   setEchosounderData: React.Dispatch<React.SetStateAction<EchosounderPoint[]>>;
 }
@@ -36,7 +45,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // --- STATE DATA GEOJSON DARI BACKEND ---
+  // --- STATE DATA GEOJSON (spatialFeatures) ---
   const [features, setFeatures] = useState<FeatureCollection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,76 +54,178 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchFeatures(); // Panggil API backend
-      setFeatures(data);
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `{ spatialFeatures { id layerType name description geometry source metadata } }`,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.errors) {
+        throw new Error(result.errors.map((e: any) => e.message).join(", "));
+      }
+
+      const geojson: FeatureCollection = {
+        type: "FeatureCollection",
+        features: result.data.spatialFeatures.map((f: any) => ({
+          type: "Feature",
+          id: f.id,
+          properties: {
+            id: f.id,
+            name: f.name,
+            description: f.description,
+            layerType: f.layerType,
+            source: f.source,
+            ...f.metadata,
+          },
+          geometry: f.geometry,
+        })),
+      };
+      setFeatures(geojson);
     } catch (err: any) {
-      console.error("Failed to fetch features:", err);
+      console.error("Gagal ambil spatialFeatures:", err);
       setError(err.message || "Gagal memuat data dari server.");
     } finally {
       setLoading(false);
     }
   };
 
-  const addFeature = async (newFeature: any) => {
-    // TODO: Implementasi panggilan API untuk menyimpan ke DB
-    console.log("Simpan fitur baru ke backend:", newFeature); // Placeholder
+  const addFeature = async (newFeature: Feature) => {
+    try {
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `
+            mutation CreateSpatialFeature(
+              $layerType: String!
+              $name: String
+              $description: String
+              $geometry: GeometryInput!
+              $source: String
+              $meta: MetadataInput
+            ) {
+              createSpatialFeature(
+                layerType: $layerType
+                name: $name
+                description: $description
+                geometry: $geometry
+                source: $source
+                metadata: $meta
+              ) {
+                id
+                layerType
+                name
+                description
+                geometry
+              }
+            }
+          `,
+          variables: {
+            layerType: newFeature.properties?.layerType || "custom",
+            name: newFeature.properties?.name || "Unnamed",
+            description: newFeature.properties?.description || "",
+            geometry: newFeature.geometry,
+            source: newFeature.properties?.source || "user_input",
+            meta: newFeature.properties?.meta || null,
+          },
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.createSpatialFeature) {
+        loadData(); // Refresh data
+      } else {
+        throw new Error(result.data?.createSpatialFeature?.message || "Gagal simpan");
+      }
+    } catch (err: any) {
+      console.error("Gagal simpan feature:", err);
+      alert("Gagal menyimpan ke server: " + err.message);
+    }
   };
 
-  // --- STATE UNTUK MANAJEMEN LAYER ---
+  // --- MANAJEMEN LAYER ---
   const [layerDefinitions, setLayerDefinitions] = useState<LayerDefinition[] | null>(null);
   const [layerVisibility, setLayerVisibility] = useState<LayerVisibilityState>({});
   const [loadingLayers, setLoadingLayers] = useState(true);
   const [errorLayers, setErrorLayers] = useState<string | null>(null);
 
-  // Fungsi untuk memuat layer dari backend (via dataService)
   const loadLayers = async () => {
     setLoadingLayers(true);
     setErrorLayers(null);
     try {
-      // TODO: Ganti dengan pemanggilan API sebenarnya
-      // Misal: const layers = await fetchLayerDefinitions();
-      // Untuk sementara, gunakan data dummy
-      const dummyLayers: LayerDefinition[] = [
-        { id: "toponimi", name: "Toponimi", description: "Menampilkan nama tempat di sepanjang sungai" },
-        { id: "sampling", name: "Sampling Points", description: "Menunjukkan titik-titik pengambilan sampel" },
-        { id: "sungai", name: "Profil Sungai", description: "Menampilkan profil atau jalur sungai" },
-        { id: "batimetri", name: "Bathymetri", description: "Visualisasi kedalaman sungai", color: "#9333ea" },
-      ];
-      setLayerDefinitions(dummyLayers);
-
-      // Inisialisasi visibilitas, misalnya semua true
-      const initialVisibility: LayerVisibilityState = {};
-      dummyLayers.forEach((layer) => {
-        initialVisibility[layer.id] = true; // Atau ambil dari preferensi pengguna/backend
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `{ layerDefinitions { id name description layerType source meta } }`,
+        }),
       });
+
+      const result = await response.json();
+      if (result.errors) {
+        throw new Error(result.errors.map((e: any) => e.message).join(", "));
+      }
+
+      const layers = result.data.layerDefinitions;
+      setLayerDefinitions(layers);
+
+      // Baca dari localStorage jika ada
+      let savedVisibility;
+      try {
+        const saved = localStorage.getItem("layerVisibility");
+        if (saved) savedVisibility = JSON.parse(saved);
+      } catch (e) {
+        console.warn("Gagal baca layerVisibility dari localStorage");
+      }
+
+      const initialVisibility = layers.reduce((acc: LayerVisibilityState, layer: LayerDefinition) => {
+        acc[layer.id] = savedVisibility?.[layer.id] ?? false;
+        return acc;
+      }, {});
+
       setLayerVisibility(initialVisibility);
     } catch (err: any) {
-      console.error("Failed to load layers:", err);
+      console.error("Gagal ambil layerDefinitions:", err);
       setErrorLayers(err.message || "Gagal memuat daftar layer.");
     } finally {
       setLoadingLayers(false);
     }
   };
 
-  // --- STATE UNTUK DATA ECHOSOUNDER ---
+  // --- DATA ECHOSOUNDER ---
   const [echosounderData, setEchosounderData] = useState<EchosounderPoint[]>([]);
 
+  // --- Auto-load saat mount ---
   useEffect(() => {
     loadData();
-    loadLayers(); // Muat layer juga saat komponen mount
+    loadLayers();
   }, []);
+
+  // --- Simpan layerVisibility ke localStorage saat berubah ---
+  useEffect(() => {
+    if (Object.keys(layerVisibility).length > 0) {
+      try {
+        localStorage.setItem("layerVisibility", JSON.stringify(layerVisibility));
+      } catch (err) {
+        console.warn("Gagal simpan layerVisibility ke localStorage", err);
+      }
+    }
+  }, [layerVisibility]);
 
   return (
     <DataContext.Provider
       value={{
-        // --- STATE DATA GEOJSON DARI BACKEND ---
+        // --- Data GeoJSON ---
         features,
         loading,
         error,
         refreshData: loadData,
         addFeature,
 
-        // --- STATE UNTUK MANAJEMEN LAYER ---
+        // --- Layer Management ---
         layerDefinitions,
         layerVisibility,
         setLayerVisibility,
@@ -122,7 +233,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorLayers,
         refreshLayers: loadLayers,
 
-        // --- STATE UNTUK DATA ECHOSOUNDER ---
+        // --- Echosounder ---
         echosounderData,
         setEchosounderData,
       }}

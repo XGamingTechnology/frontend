@@ -1,25 +1,31 @@
 // src/components/map/MapComponent.tsx
 "use client";
-
 import * as L from "leaflet";
 import { MapContainer, TileLayer, useMapEvents, ZoomControl, useMap, Marker, Popup, GeoJSON, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MutableRefObject, useEffect, useState } from "react";
 import { Map as LeafletMap, Icon, LatLngExpression } from "leaflet";
-import GeoJsonLayer from "@/components/layers/GeoJsonLayer";
 import { useTool } from "@/context/ToolContext";
+import { useData } from "@/context/DataContext"; // 1. Impor useData
 import ToponimiFormModal from "@/components/forms/ToponimiFormModal";
 import SimulasiPanel from "@/components/panels/SimulasiPanel";
 import type { Feature, LineString, Point } from "geojson";
 import { generateTransek } from "@/lib/geotools/generateTransek";
 
-interface MapComponentProps {
-  setLatLng: (coords: [number, number]) => void;
-  basemapType: string;
-  mapRef: MutableRefObject<LeafletMap | null>;
-  userLocation?: [number, number] | null;
+// --- Tipe untuk Spatial Feature dari GraphQL ---
+interface SpatialFeature {
+  id: string;
+  layerType: string;
+  name: string;
+  description: string;
+  geometry: GeoJSON.Geometry;
+  source: string;
+  metadata: Record<string, any>;
+  createdAt: string;
+  createdBy: string | null;
 }
 
+// --- ICONS ---
 const buoyIcon = new Icon({
   iconUrl: "/Pin.svg",
   iconSize: [32, 32],
@@ -31,6 +37,7 @@ const userIcon = buoyIcon;
 const startIcon = buoyIcon;
 const endIcon = buoyIcon;
 
+// --- Komponen: Simpan referensi map ke ref ---
 function MapRefSetter({ mapRef }: { mapRef: MutableRefObject<LeafletMap | null> }) {
   const map = useMap();
   useEffect(() => {
@@ -39,6 +46,7 @@ function MapRefSetter({ mapRef }: { mapRef: MutableRefObject<LeafletMap | null> 
   return null;
 }
 
+// --- Komponen: Marker Lokasi User ---
 function UserLocationMarker({ location }: { location: [number, number] }) {
   return (
     <Marker position={location} icon={userIcon}>
@@ -47,38 +55,111 @@ function UserLocationMarker({ location }: { location: [number, number] }) {
   );
 }
 
-export default function MapComponent({ setLatLng, basemapType, mapRef, userLocation }: MapComponentProps) {
+// --- Hook: Ambil data spatial dari GraphQL ---
+function useSpatialFeatures(layerType?: string, source?: string) {
+  const [features, setFeatures] = useState<Feature[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch("http://localhost:5000/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: `
+              query GetSpatialFeatures($layerType: String, $source: String) {
+                spatialFeatures(layerType: $layerType, source: $source) {
+                  id
+                  layerType
+                  name
+                  description
+                  geometry
+                  source
+                  metadata
+                }
+              }
+            `,
+            variables: { layerType, source },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.errors) {
+          throw new Error(result.errors.map((e: any) => e.message).join(", "));
+        }
+
+        if (result.data?.spatialFeatures) {
+          const mapped = result.data.spatialFeatures.map((f: SpatialFeature) => ({
+            type: "Feature",
+            properties: {
+              id: f.id,
+              name: f.name,
+              description: f.description,
+              layerType: f.layerType,
+              source: f.source,
+              ...f.metadata,
+            },
+            geometry: f.geometry,
+          }));
+          setFeatures(mapped);
+        }
+      } catch (err: any) {
+        console.error("Gagal ambil data spasial:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [layerType, source]);
+
+  return { features, loading, error };
+}
+
+export default function MapComponent({
+  setLatLng,
+  basemapType,
+  mapRef,
+  userLocation,
+}: {
+  setLatLng: (coords: [number, number]) => void;
+  basemapType: string;
+  mapRef: MutableRefObject<LeafletMap | null>;
+  userLocation?: [number, number] | null;
+}) {
   const tileLayers: Record<string, string> = {
     osm: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     terrain: "https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg",
   };
   const tileUrl = tileLayers[basemapType] || tileLayers["osm"];
-  const [centerline, setCenterline] = useState<any>(null);
 
-  // --- STATE UNTUK TRANSEK DAN SAMPLING POINT (LOKAL) ---
-  // State ini dikelola secara lokal karena hasil dari logika spesifik komponen ini.
+  // --- Ambil data spasial dari backend ---
+  const { features: centerlineFeatures } = useSpatialFeatures("centerline");
+  const { features: sungaiFeatures } = useSpatialFeatures("sungai");
+  const { features: toponimiFeatures } = useSpatialFeatures("toponimi");
+
+  // --- Gunakan DataContext untuk visibilitas layer ---
+  const { layerVisibility } = useData();
+
+  // --- State untuk hasil generate transek ---
   const [allTransects, setAllTransects] = useState<Feature<LineString>[]>([]);
   const [samplingPoints, setSamplingPoints] = useState<Feature<Point>[]>([]);
 
-  const {
-    activeTool,
-    setActiveTool,
-    formLatLng,
-    setFormLatLng,
-    showToponimiForm,
-    setShowToponimiForm,
-    routePoints,
-    setRoutePoints,
-    // --- STATE DARI TOOLCONTEXT ---
-    // Hanya gunakan state tools/UI dari context.
-    // State hasil perhitungan seperti samplingPoints di context diabaikan.
-    layers,
-  } = useTool();
-
-  // --- STATE UNTUK DRAWLINE TOOL (LOKAL) ---
-  // State ini tetap dikelola secara lokal karena spesifik untuk interaksi menggambar di komponen ini.
+  // --- State untuk menggambar garis ---
   const [drawnLine, setDrawnLine] = useState<L.LatLng[]>([]);
+
+  const { activeTool, setActiveTool, formLatLng, setFormLatLng, showToponimiForm, setShowToponimiForm, routePoints, setRoutePoints } = useTool();
 
   const isDrawing = activeTool === "drawline";
   const hasLine = drawnLine.length > 0;
@@ -87,26 +168,18 @@ export default function MapComponent({ setLatLng, basemapType, mapRef, userLocat
     setDrawnLine((prev) => [...prev, latlng]);
   };
 
-  // --- FUNGSI UNTUK MENGHAPUS GARIS DAN RESET STATE TRANSEK LOKAL ---
   const clearDrawnLine = () => {
     setDrawnLine([]);
-    // Reset state hasil generateTransek yang dikelola secara lokal
     setAllTransects([]);
     setSamplingPoints([]);
-    // JANGAN panggil setActiveTool(null) di sini jika hanya ingin hapus garis
-    // setActiveTool(null);
-    // Fungsi ini sekarang hanya untuk membersihkan garis dan hasil generate lokal.
   };
 
-  // --- FUNGSI UNTUK MENGHASILKAN TRANSEK MENTAH ---
   const handleGenerateTransek = (spasi: number, panjang: number) => {
-    console.log("handleGenerateTransek dipanggil dengan:", { spasi, panjang });
     if (!drawnLine || drawnLine.length < 2) {
       alert("Garis sungai belum digambar.");
       return;
     }
 
-    // Buat Feature<LineString> dari drawnLine
     const lineCoords = drawnLine.map((latlng) => [latlng.lng, latlng.lat]);
     const riverLine: Feature<LineString> = {
       type: "Feature",
@@ -115,17 +188,12 @@ export default function MapComponent({ setLatLng, basemapType, mapRef, userLocat
     };
 
     try {
-      // Signature: generateTransek(riverLine, spasi, panjang, useAutoBuffer)
-      const result = generateTransek(riverLine, spasi, panjang, true); // useAutoBuffer = true
+      const result = generateTransek(riverLine, spasi, panjang, true);
       if (result) {
-        // Simpan hasil ke state lokal komponen
         setAllTransects(result.allTransects);
         setSamplingPoints(result.samplingPoints);
-        console.log("Hasil generateTransek (mentah):", result);
-        // Tetap di mode simulasi untuk menampilkan hasil
       } else {
-        alert("Gagal menghasilkan transek. Silakan cek console untuk detail.");
-        console.error("generateTransek mengembalikan null/undefined");
+        alert("Gagal menghasilkan transek.");
       }
     } catch (error) {
       console.error("Error saat memanggil generateTransek:", error);
@@ -133,15 +201,14 @@ export default function MapComponent({ setLatLng, basemapType, mapRef, userLocat
     }
   };
 
-  // --- FUNGSI UNTUK MEMULAI MENGgambar GARIS ---
   const handleStartDrawing = () => {
     setDrawnLine([]);
-    // Reset state hasil sebelumnya saat mulai menggambar baru
     setAllTransects([]);
     setSamplingPoints([]);
     setActiveTool("drawline");
   };
 
+  // --- Map Events ---
   const MapEvents = () => {
     const map = useMap();
     useMapEvents({
@@ -172,50 +239,77 @@ export default function MapComponent({ setLatLng, basemapType, mapRef, userLocat
       contextmenu() {
         if (activeTool === "drawline" && drawnLine.length > 1) {
           alert("Garis selesai digambar.");
-          // Opsional: Otomatis hentikan drawing setelah selesai?
-          // setActiveTool(null);
         }
       },
     });
     return null;
   };
 
-  const handleAddToponimi = ({ nama, deskripsi }: { nama: string; deskripsi: string }) => {
-    if (!formLatLng || !mapRef.current) return;
-    L.marker(formLatLng, { icon: buoyIcon }).addTo(mapRef.current).bindPopup(`<strong>${nama}</strong><br/>${deskripsi}`);
-    setFormLatLng(null);
-    setShowToponimiForm(false);
+  const handleAddToponimi = async ({ nama, deskripsi }: { nama: string; deskripsi: string }) => {
+    if (!formLatLng) return;
+
+    try {
+      const pointGeoJSON = {
+        type: "Point",
+        coordinates: [formLatLng.lng, formLatLng.lat],
+      };
+
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `
+            mutation CreateSpatialFeature(
+              $layerType: String!
+              $name: String
+              $description: String
+              $geometry: GeometryInput!
+              $source: String
+            ) {
+              createSpatialFeature(
+                layerType: $layerType
+                name: $name
+                description: $description
+                geometry: $geometry
+                source: $source
+              ) {
+                id
+                layerType
+                name
+                description
+                geometry
+              }
+            }
+          `,
+          variables: {
+            layerType: "toponimi",
+            name: nama,
+            description: deskripsi,
+            geometry: pointGeoJSON,
+            source: "user_input",
+          },
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.createSpatialFeature) {
+        alert("Toponimi berhasil ditambahkan!");
+        setShowToponimiForm(false);
+        setFormLatLng(null);
+      } else {
+        const message = result.data?.createSpatialFeature?.message || "Gagal menyimpan";
+        alert(message);
+      }
+    } catch (err) {
+      console.error("Gagal simpan toponimi:", err);
+      alert("Tidak dapat terhubung ke server.");
+    }
   };
 
   const handleCancelMarker = () => {
     setFormLatLng(null);
     setShowToponimiForm(false);
   };
-
-  // --- FETCH DATA STATIC (CENTERLINE) ---
-  useEffect(() => {
-    fetch("/data/centerline.geojson")
-      .then((res) => res.json())
-      .then((data) => {
-        setCenterline(data);
-      })
-      .catch((err) => console.error("Error fetching centerline:", err));
-  }, []);
-
-  // --- FETCH DATA POLYGON SUNGAI (DIKOMENTARI) ---
-  // Komentari atau hapus fetch riverPolygons karena tidak digunakan lagi
-  // untuk clipping di tahap generate
-  /*
-  useEffect(() => {
-    fetch("/data/sungai.geojson")
-      .then((res) => res.json())
-      .then((data) => {
-        // Logika pemrosesan polygon jika diperlukan untuk layer tampilan
-        // atau untuk proses clipping terpisah nanti
-      })
-      .catch((err) => console.error("Error fetching river polygons:", err));
-  }, [mapRef]);
-  */
 
   return (
     <>
@@ -225,12 +319,36 @@ export default function MapComponent({ setLatLng, basemapType, mapRef, userLocat
         <MapEvents />
         <MapRefSetter mapRef={mapRef} />
         {userLocation && <UserLocationMarker location={userLocation} />}
-        {centerline && <GeoJSON data={centerline} style={{ color: "blue", weight: 3 }} />}
 
-        {/* --- TAMPILAN GARIS YANG DIGAMBAR --- */}
+        {/* --- TAMPILAN DATA DINAMIS --- */}
+        {layerVisibility.centerline && centerlineFeatures.map((feature) => <GeoJSON key={feature.properties?.id} data={feature} style={{ color: "blue", weight: 3 }} />)}
+
+        {layerVisibility.sungai && sungaiFeatures.map((feature) => <GeoJSON key={feature.properties?.id} data={feature} style={{ color: "#0284c7", weight: 2 }} />)}
+
+        {layerVisibility.toponimi &&
+          toponimiFeatures.map((feature) => (
+            <GeoJSON
+              key={feature.properties?.id}
+              data={feature}
+              pointToLayer={(point, latlng) =>
+                L.circleMarker(latlng, {
+                  radius: 6,
+                  color: feature.properties?.markerColor || "#9333ea",
+                  fillColor: feature.properties?.fillColor || "#9333ea",
+                  fillOpacity: 0.7,
+                })
+              }
+              onEachFeature={(feature, layer) => {
+                const popupContent = `<strong>${feature.properties?.name}</strong><br/>${feature.properties?.description}`;
+                layer.bindPopup(popupContent);
+              }}
+            />
+          ))}
+
+        {/* --- GARIS YANG DIGAMBAR --- */}
         {drawnLine.length > 0 && <Polyline positions={drawnLine} color="red" weight={4} />}
 
-        {/* --- TAMPILAN TRANSEK YANG DIHASILKAN (MENTAH) --- */}
+        {/* --- HASIL GENERATE TRANSEK --- */}
         {allTransects.map((transek) => (
           <GeoJSON
             key={transek.properties?.id || transek.properties?.index}
@@ -241,13 +359,17 @@ export default function MapComponent({ setLatLng, basemapType, mapRef, userLocat
             }}
             eventHandlers={{
               click: () => {
-                alert(`ID: ${transek.properties?.id}\n` + `Jarak: ${transek.properties?.distanceFromStart}m\n` + `Bearing: ${transek.properties?.bearing}\n` + `Panjang Teoritis: ${transek.properties?.theoreticalLength}m`);
+                alert(
+                  `ID: ${transek.properties?.id}
+Jarak: ${transek.properties?.distanceFromStart}m
+Bearing: ${transek.properties?.bearing}
+Panjang Teoritis: ${transek.properties?.theoreticalLength}m`
+                );
               },
             }}
           />
         ))}
 
-        {/* --- TAMPILAN TITIK SAMPLING --- */}
         {samplingPoints.map((pt, i) => (
           <Marker
             key={`sampling-${i}`}
@@ -262,11 +384,6 @@ export default function MapComponent({ setLatLng, basemapType, mapRef, userLocat
             </Popup>
           </Marker>
         ))}
-
-        {/* --- LAYER TAMBAHAN (GeoJsonLayer) --- */}
-        {layers.batimetri && <GeoJsonLayer url="/data/toponimi.geojson" popupField="kedalaman" color="#9333ea" radius={6} />}
-        {layers.toponimi && <GeoJsonLayer url="/data/toponimi.geojson" popupField="kedalaman" marker />}
-        {layers.sungai && <GeoJsonLayer url="/data/sungai.geojson" popupField="nama" color="#0284c7" />}
       </MapContainer>
 
       {/* --- MODAL FORM TOPONIMI --- */}
@@ -274,46 +391,10 @@ export default function MapComponent({ setLatLng, basemapType, mapRef, userLocat
         <ToponimiFormModal latlng={[formLatLng.lat, formLatLng.lng]} onClose={() => setShowToponimiForm(false)} onSubmit={handleAddToponimi} onCancelMarker={handleCancelMarker} />
       )}
 
-      {/* --- PANEL SIMULASI TRANSEK --- */}
-      {/* Perbarui pemanggilan SimulasiPanel - hapus props terkait polygon */}
-      {/* Asumsi SimulasiPanel sudah memiliki tombol Hapus dan Tutup di dalamnya */}
+      {/* --- PANEL SIMULASI --- */}
       {(activeTool === "simulasi" || isDrawing) && (
-        <SimulasiPanel
-          onGenerate={handleGenerateTransek}
-          onStartDrawing={handleStartDrawing}
-          isDrawing={isDrawing}
-          hasLine={hasLine}
-          // --- PROPS UNTUK KONTROL TAMBAHAN ---
-          onDeleteLine={clearDrawnLine}
-          onClosePanel={() => {
-            // Logika tutup panel: keluar dari mode (ini yang menutup panel)
-            setActiveTool(null);
-          }}
-        />
+        <SimulasiPanel onGenerate={handleGenerateTransek} onStartDrawing={handleStartDrawing} isDrawing={isDrawing} hasLine={hasLine} onDeleteLine={clearDrawnLine} onClosePanel={() => setActiveTool(null)} />
       )}
-
-      {/* --- TOMBOL "HAPUS GARIS" TERPISAH (DIKOMENTARI) --- */}
-      {/* 
-      {(isDrawing || hasLine) && drawnLine.length > 0 && (
-        <button
-          onClick={clearDrawnLine}
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 10,
-            zIndex: 999,
-            padding: "6px 12px",
-            backgroundColor: "#ef4444",
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-          }}
-        >
-          Hapus Garis
-        </button>
-      )} 
-      */}
     </>
   );
 }

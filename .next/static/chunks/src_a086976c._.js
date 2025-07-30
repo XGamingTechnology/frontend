@@ -26,16 +26,27 @@ function HeaderBar() {
             if (stored) {
                 try {
                     const parsed = JSON.parse(stored);
-                    if (parsed?.name) setUserName(parsed.name);
-                } catch  {
+                    // Gunakan fullName jika ada, fallback ke username, lalu ke "Pengguna"
+                    const displayName = parsed.fullName || parsed.username || "Pengguna";
+                    setUserName(displayName);
+                } catch (error) {
+                    console.error("Gagal parsing user dari localStorage:", error);
                     setUserName("Pengguna");
                 }
+            } else {
+            // Jika tidak ada user, redirect ke login (opsional)
+            // router.push("/login"); // aktifkan jika ingin wajib login
             }
         }
     }["HeaderBar.useEffect"], []);
     const handleLogout = ()=>{
         if (confirm("Yakin ingin logout?")) {
+            // Hapus data autentikasi
+            localStorage.removeItem("authToken");
             localStorage.removeItem("user");
+            // Log aktivitas logout
+            console.log("User logout");
+            // Redirect
             router.push("/login");
         }
     };
@@ -51,7 +62,7 @@ function HeaderBar() {
                         className: "h-8 w-8"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 33,
+                        lineNumber: 56,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -59,13 +70,13 @@ function HeaderBar() {
                         children: "Vision Traffic Suite"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 34,
+                        lineNumber: 57,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/HeaderBar.tsx",
-                lineNumber: 32,
+                lineNumber: 55,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -78,7 +89,7 @@ function HeaderBar() {
                         title: "Pengguna aktif"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 41,
+                        lineNumber: 62,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -86,7 +97,7 @@ function HeaderBar() {
                         children: userName
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 47,
+                        lineNumber: 63,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -94,7 +105,7 @@ function HeaderBar() {
                         children: "|"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 48,
+                        lineNumber: 64,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -104,19 +115,19 @@ function HeaderBar() {
                         children: "Logout"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 49,
+                        lineNumber: 65,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/HeaderBar.tsx",
-                lineNumber: 40,
+                lineNumber: 61,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/HeaderBar.tsx",
-        lineNumber: 30,
+        lineNumber: 53,
         columnNumber: 5
     }, this);
 }
@@ -143,12 +154,12 @@ __turbopack_context__.s({
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/ToolContext.tsx [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-client] (ecmascript)"); // 1. Impor useData
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$heroicons$2f$react$2f$24$2f$outline$2f$esm$2f$MapIcon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__MapIcon$3e$__ = __turbopack_context__.i("[project]/node_modules/@heroicons/react/24/outline/esm/MapIcon.js [app-client] (ecmascript) <export default as MapIcon>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$heroicons$2f$react$2f$24$2f$outline$2f$esm$2f$BeakerIcon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__BeakerIcon$3e$__ = __turbopack_context__.i("[project]/node_modules/@heroicons/react/24/outline/esm/BeakerIcon.js [app-client] (ecmascript) <export default as BeakerIcon>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$heroicons$2f$react$2f$24$2f$outline$2f$esm$2f$RectangleStackIcon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__RectangleStackIcon$3e$__ = __turbopack_context__.i("[project]/node_modules/@heroicons/react/24/outline/esm/RectangleStackIcon.js [app-client] (ecmascript) <export default as RectangleStackIcon>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$heroicons$2f$react$2f$24$2f$outline$2f$esm$2f$WrenchScrewdriverIcon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__WrenchScrewdriverIcon$3e$__ = __turbopack_context__.i("[project]/node_modules/@heroicons/react/24/outline/esm/WrenchScrewdriverIcon.js [app-client] (ecmascript) <export default as WrenchScrewdriverIcon>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$heroicons$2f$react$2f$24$2f$outline$2f$esm$2f$CursorArrowRaysIcon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CursorArrowRaysIcon$3e$__ = __turbopack_context__.i("[project]/node_modules/@heroicons/react/24/outline/esm/CursorArrowRaysIcon.js [app-client] (ecmascript) <export default as CursorArrowRaysIcon>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$heroicons$2f$react$2f$24$2f$outline$2f$esm$2f$WrenchScrewdriverIcon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__WrenchScrewdriverIcon$3e$__ = __turbopack_context__.i("[project]/node_modules/@heroicons/react/24/outline/esm/WrenchScrewdriverIcon.js [app-client] (ecmascript) <export default as WrenchScrewdriverIcon>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$heroicons$2f$react$2f$24$2f$outline$2f$esm$2f$RectangleStackIcon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__RectangleStackIcon$3e$__ = __turbopack_context__.i("[project]/node_modules/@heroicons/react/24/outline/esm/RectangleStackIcon.js [app-client] (ecmascript) <export default as RectangleStackIcon>");
 ;
 var _s = __turbopack_context__.k.signature();
 "use client";
@@ -158,8 +169,8 @@ var _s = __turbopack_context__.k.signature();
 function SidebarLeft() {
     _s();
     const { activeTool, setActiveTool } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useTool"])();
-    // 3. Gunakan state dan fungsi dari DataContext untuk layer
     const { layerDefinitions, layerVisibility, setLayerVisibility, loadingLayers, errorLayers } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])();
+    // 🔧 Tools tetap bisa hardcode (opsional: bisa juga dari backend)
     const toolOptions = [
         {
             value: "toponimi",
@@ -180,14 +191,32 @@ function SidebarLeft() {
             tooltip: "Menampilkan data echosounder"
         }
     ];
-    // 4. Fungsi untuk mengubah visibilitas layer
+    // ✅ Handler: Toggle visibilitas layer
     const handleLayerVisibilityChange = (layerId)=>{
-        setLayerVisibility((prev)=>({
-                ...prev,
-                [layerId]: !prev[layerId]
-            }));
-    // TODO: Kirim perubahan ke backend jika diperlukan
-    // Misal: updateLayerVisibilityOnBackend(layerId, !prev[layerId]);
+        const newVisibility = {
+            ...layerVisibility,
+            [layerId]: !layerVisibility[layerId]
+        };
+        setLayerVisibility(newVisibility);
+        // 🧠 Opsional: Simpan ke localStorage agar tetap saat reload
+        try {
+            localStorage.setItem("layerVisibility", JSON.stringify(newVisibility));
+        } catch (err) {
+            console.warn("Gagal simpan layerVisibility ke localStorage", err);
+        }
+    };
+    // ✅ Fungsi: Reset visibilitas semua layer
+    const handleResetLayers = ()=>{
+        const reset = layerDefinitions.reduce((acc, layer)=>({
+                ...acc,
+                [layer.id]: false
+            }), {});
+        setLayerVisibility(reset);
+        try {
+            localStorage.setItem("layerVisibility", JSON.stringify(reset));
+        } catch (err) {
+            console.warn("Gagal reset localStorage", err);
+        }
     };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "h-full w-72 border-r bg-white text-sm text-gray-800 shadow-md flex flex-col",
@@ -203,34 +232,61 @@ function SidebarLeft() {
                                     className: "w-4 h-4"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/SidebarLeft.tsx",
-                                    lineNumber: 57,
+                                    lineNumber: 70,
                                     columnNumber: 13
                                 }, this),
                                 "Layer List"
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                            lineNumber: 56,
+                            lineNumber: 69,
                             columnNumber: 11
                         }, this),
-                        loadingLayers ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                            className: "text-gray-500 text-center py-2",
-                            children: "Memuat layer..."
+                        loadingLayers && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "flex items-center justify-center py-2",
+                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "text-gray-500 text-sm",
+                                children: "Memuat layer..."
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/SidebarLeft.tsx",
+                                lineNumber: 77,
+                                columnNumber: 15
+                            }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                            lineNumber: 62,
+                            lineNumber: 76,
                             columnNumber: 13
-                        }, this) : errorLayers ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                            className: "text-red-500 text-center py-2",
+                        }, this),
+                        errorLayers && !loadingLayers && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "text-center py-2",
                             children: [
-                                "Error: ",
-                                errorLayers
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                    className: "text-red-500 text-sm",
+                                    children: [
+                                        "❌ ",
+                                        errorLayers
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/SidebarLeft.tsx",
+                                    lineNumber: 84,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                    onClick: ()=>window.location.reload(),
+                                    className: "text-xs text-blue-500 hover:underline mt-1",
+                                    children: "Coba lagi"
+                                }, void 0, false, {
+                                    fileName: "[project]/src/components/SidebarLeft.tsx",
+                                    lineNumber: 85,
+                                    columnNumber: 15
+                                }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                            lineNumber: 64,
+                            lineNumber: 83,
                             columnNumber: 13
-                        }, this) : layerDefinitions && layerDefinitions.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        }, this),
+                        !loadingLayers && !errorLayers && Array.isArray(layerDefinitions) && layerDefinitions.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "space-y-2",
                             children: layerDefinitions.map((layer)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
                                     className: "flex items-center justify-between hover:bg-gray-100 p-2 rounded-md transition cursor-pointer group",
@@ -245,54 +301,72 @@ function SidebarLeft() {
                                                     onChange: ()=>handleLayerVisibilityChange(layer.id)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/SidebarLeft.tsx",
-                                                    lineNumber: 71,
+                                                    lineNumber: 97,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                    className: "font-medium",
                                                     children: layer.name
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/SidebarLeft.tsx",
-                                                    lineNumber: 77,
+                                                    lineNumber: 98,
                                                     columnNumber: 21
-                                                }, this),
-                                                " "
+                                                }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                                            lineNumber: 70,
+                                            lineNumber: 96,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                             className: "text-gray-400 text-xs group-hover:text-gray-700",
-                                            title: layer.description,
+                                            title: layer.description || "Tidak ada deskripsi",
                                             children: "ℹ️"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                                            lineNumber: 80,
+                                            lineNumber: 100,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, layer.id, true, {
                                     fileName: "[project]/src/components/SidebarLeft.tsx",
-                                    lineNumber: 69,
+                                    lineNumber: 95,
                                     columnNumber: 17
                                 }, this))
                         }, void 0, false, {
                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                            lineNumber: 66,
+                            lineNumber: 93,
                             columnNumber: 13
-                        }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                            className: "text-gray-500 text-center py-2",
-                            children: "Tidak ada layer tersedia."
-                        }, void 0, false, {
+                        }, this) : !loadingLayers && !errorLayers && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "text-center py-2",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                    className: "text-gray-500 text-sm",
+                                    children: "Tidak ada layer tersedia."
+                                }, void 0, false, {
+                                    fileName: "[project]/src/components/SidebarLeft.tsx",
+                                    lineNumber: 110,
+                                    columnNumber: 17
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                    onClick: handleResetLayers,
+                                    className: "text-xs text-blue-500 hover:underline mt-1",
+                                    children: "Reset visibilitas"
+                                }, void 0, false, {
+                                    fileName: "[project]/src/components/SidebarLeft.tsx",
+                                    lineNumber: 111,
+                                    columnNumber: 17
+                                }, this)
+                            ]
+                        }, void 0, true, {
                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                            lineNumber: 87,
-                            columnNumber: 13
+                            lineNumber: 109,
+                            columnNumber: 15
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/SidebarLeft.tsx",
-                    lineNumber: 55,
+                    lineNumber: 68,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -304,14 +378,14 @@ function SidebarLeft() {
                                     className: "w-4 h-4"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/SidebarLeft.tsx",
-                                    lineNumber: 94,
+                                    lineNumber: 122,
                                     columnNumber: 13
                                 }, this),
                                 "Tools"
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                            lineNumber: 93,
+                            lineNumber: 121,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -325,42 +399,42 @@ function SidebarLeft() {
                                             className: "w-4 h-4"
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                                            lineNumber: 105,
+                                            lineNumber: 133,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                             children: label
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                                            lineNumber: 106,
+                                            lineNumber: 134,
                                             columnNumber: 17
                                         }, this)
                                     ]
-                                }, value, true, {
+                                }, `tool-${value}`, true, {
                                     fileName: "[project]/src/components/SidebarLeft.tsx",
-                                    lineNumber: 99,
+                                    lineNumber: 127,
                                     columnNumber: 15
                                 }, this))
                         }, void 0, false, {
                             fileName: "[project]/src/components/SidebarLeft.tsx",
-                            lineNumber: 97,
+                            lineNumber: 125,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/SidebarLeft.tsx",
-                    lineNumber: 92,
+                    lineNumber: 120,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/SidebarLeft.tsx",
-            lineNumber: 53,
+            lineNumber: 66,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/SidebarLeft.tsx",
-        lineNumber: 52,
+        lineNumber: 65,
         columnNumber: 5
     }, this);
 }
@@ -850,39 +924,67 @@ __turbopack_context__.s({
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$papaparse$2f$papaparse$2e$min$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/papaparse/papaparse.min.js [app-client] (ecmascript)");
-// 1. Ganti import useTool dengan useData
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-client] (ecmascript)"); // Pastikan path ini benar
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/ToolContext.tsx [app-client] (ecmascript)"); // Tetap impor useTool untuk setShowSidebarRight
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/ToolContext.tsx [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature();
 "use client";
 ;
 ;
 ;
+;
 function FeaturePanel({ activePanel, close }) {
     _s();
-    // 3. Dapatkan state dan fungsi untuk mengelola echosounderData dari DataContext
-    const { echosounderData, setEchosounderData } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])();
-    // 4. Dapatkan fungsi dari ToolContext (hanya yang diperlukan)
+    const { echosounderData, setEchosounderData, addFeature } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])();
     const { setShowSidebarRight } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useTool"])();
-    const handleSubmit = (e)=>{
+    // --- Muat data echosounder dari backend saat komponen mount ---
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "FeaturePanel.useEffect": ()=>{
+        // Opsional: ambil dari backend jika ada data sebelumnya
+        // Misal: fetch dari spatialFeatures dengan layerType = "echosounder"
+        }
+    }["FeaturePanel.useEffect"], []);
+    const handleSubmit = async (e)=>{
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         const jarak = parseFloat(formData.get("jarak"));
         const kedalaman = parseFloat(formData.get("kedalaman"));
-        if (!isNaN(jarak) && !isNaN(kedalaman)) {
-            // 5. Update state echosounderData melalui DataContext
-            setEchosounderData((prev)=>{
-                // 6. Pastikan prev selalu array (langkah keamanan)
-                const safePrev = Array.isArray(prev) ? prev : [];
-                return [
-                    ...safePrev,
+        if (isNaN(jarak) || isNaN(kedalaman)) {
+            alert("Jarak dan kedalaman harus berupa angka.");
+            return;
+        }
+        // Buat GeoJSON Point
+        const pointFeature = {
+            type: "Point",
+            coordinates: [
+                104.76 + jarak * 0.0001,
+                -2.98 + jarak * 0.0001
+            ]
+        };
+        // Simpan ke backend
+        try {
+            await addFeature({
+                type: "Feature",
+                properties: {
+                    layerType: "echosounder",
+                    jarak,
+                    kedalaman,
+                    name: `Titik ${echosounderData.length + 1}`
+                },
+                geometry: pointFeature
+            });
+            // Update state lokal
+            setEchosounderData((prev)=>[
+                    ...Array.isArray(prev) ? prev : [],
                     {
                         jarak,
                         kedalaman
                     }
-                ];
-            });
+                ]);
+        } catch (err) {
+            console.error("Gagal simpan titik echosounder:", err);
+            alert("Gagal menyimpan ke server.");
         }
         e.currentTarget.reset();
     };
@@ -892,22 +994,50 @@ function FeaturePanel({ activePanel, close }) {
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$papaparse$2f$papaparse$2e$min$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].parse(file, {
             header: true,
             skipEmptyLines: true,
-            complete: (results)=>{
+            complete: async (results)=>{
                 const parsed = results.data;
-                const cleaned = parsed.map((row)=>({
+                const cleaned = parsed.map((row, index)=>({
                         jarak: parseFloat(row.jarak ?? ""),
                         kedalaman: parseFloat(row.kedalaman ?? "")
                     })).filter((d)=>!isNaN(d.jarak) && !isNaN(d.kedalaman));
-                // 7. Set data yang telah diproses ke DataContext
+                if (cleaned.length === 0) {
+                    alert("Tidak ada data valid dalam file CSV.");
+                    return;
+                }
+                // Simpan semua titik ke backend
+                const savePromises = cleaned.map(async (d, index)=>{
+                    const pointFeature = {
+                        type: "Point",
+                        coordinates: [
+                            104.76 + d.jarak * 0.0001,
+                            -2.98 + d.jarak * 0.0001
+                        ]
+                    };
+                    try {
+                        await addFeature({
+                            type: "Feature",
+                            properties: {
+                                layerType: "echosounder",
+                                jarak: d.jarak,
+                                kedalaman: d.kedalaman,
+                                name: `CSV-${index + 1}`
+                            },
+                            geometry: pointFeature
+                        });
+                    } catch (err) {
+                        console.error(`Gagal simpan titik ${index + 1}:`, err);
+                    }
+                });
+                await Promise.all(savePromises);
+                // Update state lokal
                 setEchosounderData(cleaned);
+                alert(`Berhasil mengunggah ${cleaned.length} titik dari CSV.`);
             },
             error: (err)=>{
                 alert("Gagal memuat file CSV: " + err.message);
             }
         });
     };
-    // 8. Pastikan data yang digunakan untuk rendering selalu array
-    //    Karena echosounderData berasal dari context, kita pastikan tipenya aman
     const dataToDisplay = Array.isArray(echosounderData) ? echosounderData : [];
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "absolute top-4 left-1/2 -translate-x-1/2 w-[400px] bg-white rounded-xl shadow-lg p-4 z-50 overflow-auto max-h-[80vh]",
@@ -925,7 +1055,7 @@ function FeaturePanel({ activePanel, close }) {
                         }[activePanel]
                     }, void 0, false, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 80,
+                        lineNumber: 132,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -934,13 +1064,13 @@ function FeaturePanel({ activePanel, close }) {
                         children: "Tutup"
                     }, void 0, false, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 90,
+                        lineNumber: 142,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                lineNumber: 79,
+                lineNumber: 131,
                 columnNumber: 7
             }, this),
             activePanel === "echosounder" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -953,14 +1083,14 @@ function FeaturePanel({ activePanel, close }) {
                                 children: "echosounder"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 99,
+                                lineNumber: 151,
                                 columnNumber: 49
                             }, this),
                             ") secara manual atau unggah melalui file CSV."
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 98,
+                        lineNumber: 150,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
@@ -976,7 +1106,7 @@ function FeaturePanel({ activePanel, close }) {
                                         children: "Jarak (meter)"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 104,
+                                        lineNumber: 156,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -988,13 +1118,13 @@ function FeaturePanel({ activePanel, close }) {
                                         className: "border border-gray-300 rounded px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 107,
+                                        lineNumber: 159,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 103,
+                                lineNumber: 155,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1006,7 +1136,7 @@ function FeaturePanel({ activePanel, close }) {
                                         children: "Kedalaman (meter)"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 111,
+                                        lineNumber: 163,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -1018,13 +1148,13 @@ function FeaturePanel({ activePanel, close }) {
                                         className: "border border-gray-300 rounded px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 114,
+                                        lineNumber: 166,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 110,
+                                lineNumber: 162,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1033,13 +1163,13 @@ function FeaturePanel({ activePanel, close }) {
                                 children: "Tambahkan Titik Pengukuran"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 117,
+                                lineNumber: 169,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 102,
+                        lineNumber: 154,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1053,13 +1183,13 @@ function FeaturePanel({ activePanel, close }) {
                                         children: "jarak,kedalaman"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 124,
+                                        lineNumber: 176,
                                         columnNumber: 51
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 123,
+                                lineNumber: 175,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -1069,13 +1199,13 @@ function FeaturePanel({ activePanel, close }) {
                                 className: "text-sm text-gray-700 block w-full border border-gray-300 rounded p-2 bg-white file:mr-2 file:py-1 file:px-3 file:border file:border-gray-300 file:bg-gray-100 file:text-sm file:text-gray-700"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 126,
+                                lineNumber: 178,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 122,
+                        lineNumber: 174,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1085,7 +1215,7 @@ function FeaturePanel({ activePanel, close }) {
                             children: "Belum ada data dimasukkan."
                         }, void 0, false, {
                             fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                            lineNumber: 137,
+                            lineNumber: 188,
                             columnNumber: 15
                         }, this) : dataToDisplay.map((d, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                 className: "text-gray-800",
@@ -1099,7 +1229,7 @@ function FeaturePanel({ activePanel, close }) {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 141,
+                                        lineNumber: 192,
                                         columnNumber: 35
                                     }, this),
                                     ", Kedalaman: ",
@@ -1110,46 +1240,46 @@ function FeaturePanel({ activePanel, close }) {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 141,
+                                        lineNumber: 192,
                                         columnNumber: 87
                                     }, this)
                                 ]
                             }, i, true, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 140,
+                                lineNumber: 191,
                                 columnNumber: 17
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 135,
+                        lineNumber: 186,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                         onClick: ()=>{
                             setShowSidebarRight(true);
-                            close(); // hanya menutup panel ini
+                            close();
                         },
                         className: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-500 text-sm w-full",
                         children: "📈 Proses dan Tampilkan Penampang"
                     }, void 0, false, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 147,
+                        lineNumber: 198,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                lineNumber: 97,
+                lineNumber: 149,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-        lineNumber: 77,
+        lineNumber: 129,
         columnNumber: 5
     }, this);
 }
-_s(FeaturePanel, "aVjzWIu8Ss7+EYB2C1cX75FqqPI=", false, function() {
+_s(FeaturePanel, "S676nvTzydyIdMx9uyMYohpUojQ=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"],
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useTool"]

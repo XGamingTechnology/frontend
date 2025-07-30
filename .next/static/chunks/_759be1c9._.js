@@ -35,7 +35,7 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
   "static/chunks/node_modules_273b5c60._.js",
-  "static/chunks/src_c9b2e48c._.js",
+  "static/chunks/src_d787fb7b._.js",
   {
     "path": "static/chunks/node_modules_leaflet_dist_leaflet_88e19fd3.css",
     "included": [

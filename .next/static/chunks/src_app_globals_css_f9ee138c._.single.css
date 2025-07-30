@@ -1343,6 +1343,10 @@
     color: var(--color-blue-300);
   }
 
+  .text-blue-500 {
+    color: var(--color-blue-500);
+  }
+
   .text-blue-700 {
     color: var(--color-blue-700);
   }

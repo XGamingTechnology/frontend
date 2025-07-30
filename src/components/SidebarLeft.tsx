@@ -2,16 +2,15 @@
 "use client";
 
 import { useTool } from "@/context/ToolContext";
-import { useData } from "@/context/DataContext"; // 1. Impor useData
-import { MapIcon, BeakerIcon, RectangleStackIcon, WrenchScrewdriverIcon, CursorArrowRaysIcon } from "@heroicons/react/24/outline";
+import { useData } from "@/context/DataContext";
+import { MapIcon, BeakerIcon, CursorArrowRaysIcon, WrenchScrewdriverIcon, RectangleStackIcon } from "@heroicons/react/24/outline";
 import type { Tool } from "@/context/ToolContext";
-import { LayerDefinition } from "@/types/layers"; // 2. Impor type
 
 export default function SidebarLeft() {
   const { activeTool, setActiveTool } = useTool();
-  // 3. Gunakan state dan fungsi dari DataContext untuk layer
   const { layerDefinitions, layerVisibility, setLayerVisibility, loadingLayers, errorLayers } = useData();
 
+  // 🔧 Tools tetap bisa hardcode (opsional: bisa juga dari backend)
   const toolOptions: {
     value: Tool;
     label: string;
@@ -38,14 +37,28 @@ export default function SidebarLeft() {
     },
   ];
 
-  // 4. Fungsi untuk mengubah visibilitas layer
+  // ✅ Handler: Toggle visibilitas layer
   const handleLayerVisibilityChange = (layerId: string) => {
-    setLayerVisibility((prev) => ({
-      ...prev,
-      [layerId]: !prev[layerId],
-    }));
-    // TODO: Kirim perubahan ke backend jika diperlukan
-    // Misal: updateLayerVisibilityOnBackend(layerId, !prev[layerId]);
+    const newVisibility = { ...layerVisibility, [layerId]: !layerVisibility[layerId] };
+    setLayerVisibility(newVisibility);
+
+    // 🧠 Opsional: Simpan ke localStorage agar tetap saat reload
+    try {
+      localStorage.setItem("layerVisibility", JSON.stringify(newVisibility));
+    } catch (err) {
+      console.warn("Gagal simpan layerVisibility ke localStorage", err);
+    }
+  };
+
+  // ✅ Fungsi: Reset visibilitas semua layer
+  const handleResetLayers = () => {
+    const reset = layerDefinitions.reduce((acc, layer) => ({ ...acc, [layer.id]: false }), {} as Record<string, boolean>);
+    setLayerVisibility(reset);
+    try {
+      localStorage.setItem("layerVisibility", JSON.stringify(reset));
+    } catch (err) {
+      console.warn("Gagal reset localStorage", err);
+    }
   };
 
   return (
@@ -57,34 +70,49 @@ export default function SidebarLeft() {
             <RectangleStackIcon className="w-4 h-4" />
             Layer List
           </h2>
-          {/* 5. Tampilkan state loading/error */}
-          {loadingLayers ? (
-            <p className="text-gray-500 text-center py-2">Memuat layer...</p>
-          ) : errorLayers ? (
-            <p className="text-red-500 text-center py-2">Error: {errorLayers}</p>
-          ) : layerDefinitions && layerDefinitions.length > 0 ? (
+
+          {/* Loading */}
+          {loadingLayers && (
+            <div className="flex items-center justify-center py-2">
+              <span className="text-gray-500 text-sm">Memuat layer...</span>
+            </div>
+          )}
+
+          {/* Error */}
+          {errorLayers && !loadingLayers && (
+            <div className="text-center py-2">
+              <p className="text-red-500 text-sm">❌ {errorLayers}</p>
+              <button onClick={() => window.location.reload()} className="text-xs text-blue-500 hover:underline mt-1">
+                Coba lagi
+              </button>
+            </div>
+          )}
+
+          {/* Data Tersedia */}
+          {!loadingLayers && !errorLayers && Array.isArray(layerDefinitions) && layerDefinitions.length > 0 ? (
             <div className="space-y-2">
-              {/* 6. Iterasi layer dari DataContext */}
-              {layerDefinitions.map((layer: LayerDefinition) => (
+              {layerDefinitions.map((layer) => (
                 <label key={layer.id} className="flex items-center justify-between hover:bg-gray-100 p-2 rounded-md transition cursor-pointer group">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="accent-cyan-600 w-4 h-4"
-                      checked={layerVisibility[layer.id] ?? false} // 7. Gunakan state dari DataContext
-                      onChange={() => handleLayerVisibilityChange(layer.id)} // 8. Gunakan fungsi handler
-                    />
-                    <span>{layer.name}</span> {/* 9. Gunakan nama dari definisi */}
+                    <input type="checkbox" className="accent-cyan-600 w-4 h-4" checked={layerVisibility[layer.id] ?? false} onChange={() => handleLayerVisibilityChange(layer.id)} />
+                    <span className="font-medium">{layer.name}</span>
                   </div>
-                  {/* 10. Gunakan deskripsi dari definisi untuk tooltip */}
-                  <span className="text-gray-400 text-xs group-hover:text-gray-700" title={layer.description}>
+                  <span className="text-gray-400 text-xs group-hover:text-gray-700" title={layer.description || "Tidak ada deskripsi"}>
                     ℹ️
                   </span>
                 </label>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-2">Tidak ada layer tersedia.</p>
+            !loadingLayers &&
+            !errorLayers && (
+              <div className="text-center py-2">
+                <p className="text-gray-500 text-sm">Tidak ada layer tersedia.</p>
+                <button onClick={handleResetLayers} className="text-xs text-blue-500 hover:underline mt-1">
+                  Reset visibilitas
+                </button>
+              </div>
+            )
           )}
         </div>
 
@@ -97,7 +125,7 @@ export default function SidebarLeft() {
           <div className="space-y-2">
             {toolOptions.map(({ value, label, icon: Icon, tooltip }) => (
               <button
-                key={value}
+                key={`tool-${value}`}
                 title={tooltip}
                 onClick={() => setActiveTool(value)}
                 className={`flex items-center w-full gap-2 p-2 rounded-md transition text-left hover:bg-indigo-50 ${activeTool === value ? "bg-indigo-100 font-semibold text-indigo-700" : "text-gray-700"}`}

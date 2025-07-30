@@ -2,12 +2,10 @@
 "use client";
 
 import Papa from "papaparse";
-import { ChangeEvent } from "react";
-// 1. Ganti import useTool dengan useData
-import { useData } from "@/context/DataContext"; // Pastikan path ini benar
-import { useTool } from "@/context/ToolContext"; // Tetap impor useTool untuk setShowSidebarRight
+import { ChangeEvent, useEffect } from "react";
+import { useData } from "@/context/DataContext";
+import { useTool } from "@/context/ToolContext";
 
-// 2. Definisikan interface untuk tipe data echosounder (jika belum ada di types/)
 interface EchosounderPoint {
   jarak: number;
   kedalaman: number;
@@ -19,25 +17,50 @@ interface FeaturePanelProps {
 }
 
 export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) {
-  // 3. Dapatkan state dan fungsi untuk mengelola echosounderData dari DataContext
-  const { echosounderData, setEchosounderData } = useData();
-
-  // 4. Dapatkan fungsi dari ToolContext (hanya yang diperlukan)
+  const { echosounderData, setEchosounderData, addFeature } = useData();
   const { setShowSidebarRight } = useTool();
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // --- Muat data echosounder dari backend saat komponen mount ---
+  useEffect(() => {
+    // Opsional: ambil dari backend jika ada data sebelumnya
+    // Misal: fetch dari spatialFeatures dengan layerType = "echosounder"
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const jarak = parseFloat(formData.get("jarak") as string);
     const kedalaman = parseFloat(formData.get("kedalaman") as string);
 
-    if (!isNaN(jarak) && !isNaN(kedalaman)) {
-      // 5. Update state echosounderData melalui DataContext
-      setEchosounderData((prev) => {
-        // 6. Pastikan prev selalu array (langkah keamanan)
-        const safePrev = Array.isArray(prev) ? prev : [];
-        return [...safePrev, { jarak, kedalaman }];
+    if (isNaN(jarak) || isNaN(kedalaman)) {
+      alert("Jarak dan kedalaman harus berupa angka.");
+      return;
+    }
+
+    // Buat GeoJSON Point
+    const pointFeature = {
+      type: "Point",
+      coordinates: [104.76 + jarak * 0.0001, -2.98 + jarak * 0.0001], // Simulasi koordinat berdasarkan jarak
+    };
+
+    // Simpan ke backend
+    try {
+      await addFeature({
+        type: "Feature",
+        properties: {
+          layerType: "echosounder",
+          jarak,
+          kedalaman,
+          name: `Titik ${echosounderData.length + 1}`,
+        },
+        geometry: pointFeature,
       });
+
+      // Update state lokal
+      setEchosounderData((prev) => [...(Array.isArray(prev) ? prev : []), { jarak, kedalaman }]);
+    } catch (err) {
+      console.error("Gagal simpan titik echosounder:", err);
+      alert("Gagal menyimpan ke server.");
     }
 
     e.currentTarget.reset();
@@ -50,18 +73,49 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (results) => {
+      complete: async (results) => {
         const parsed = results.data as { jarak?: string; kedalaman?: string }[];
 
         const cleaned = parsed
-          .map((row) => ({
+          .map((row, index) => ({
             jarak: parseFloat(row.jarak ?? ""),
             kedalaman: parseFloat(row.kedalaman ?? ""),
           }))
           .filter((d) => !isNaN(d.jarak) && !isNaN(d.kedalaman));
 
-        // 7. Set data yang telah diproses ke DataContext
+        if (cleaned.length === 0) {
+          alert("Tidak ada data valid dalam file CSV.");
+          return;
+        }
+
+        // Simpan semua titik ke backend
+        const savePromises = cleaned.map(async (d, index) => {
+          const pointFeature = {
+            type: "Point",
+            coordinates: [104.76 + d.jarak * 0.0001, -2.98 + d.jarak * 0.0001],
+          };
+
+          try {
+            await addFeature({
+              type: "Feature",
+              properties: {
+                layerType: "echosounder",
+                jarak: d.jarak,
+                kedalaman: d.kedalaman,
+                name: `CSV-${index + 1}`,
+              },
+              geometry: pointFeature,
+            });
+          } catch (err) {
+            console.error(`Gagal simpan titik ${index + 1}:`, err);
+          }
+        });
+
+        await Promise.all(savePromises);
+
+        // Update state lokal
         setEchosounderData(cleaned);
+        alert(`Berhasil mengunggah ${cleaned.length} titik dari CSV.`);
       },
       error: (err) => {
         alert("Gagal memuat file CSV: " + err.message);
@@ -69,8 +123,6 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
     });
   };
 
-  // 8. Pastikan data yang digunakan untuk rendering selalu array
-  //    Karena echosounderData berasal dari context, kita pastikan tipenya aman
   const dataToDisplay = Array.isArray(echosounderData) ? echosounderData : [];
 
   return (
@@ -131,7 +183,6 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
             />
           </div>
 
-          {/* 9. Gunakan `dataToDisplay` yang sudah dicek tipenya untuk rendering */}
           <div className="mb-4 max-h-48 overflow-y-auto border border-gray-300 rounded p-2 bg-gray-50 text-sm">
             {dataToDisplay.length === 0 ? (
               <p className="text-gray-400 italic">Belum ada data dimasukkan.</p>
@@ -147,7 +198,7 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
           <button
             onClick={() => {
               setShowSidebarRight(true);
-              close(); // hanya menutup panel ini
+              close();
             }}
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-500 text-sm w-full"
           >
