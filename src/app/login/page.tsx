@@ -24,19 +24,57 @@ export default function LoginPage() {
   ];
 
   // Proses login saat form disubmit
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const foundUser = dummyUsers.find((user) => user.email === email && user.password === password);
+    try {
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: `
+            mutation Login($email: String!, $password: String!) {
+              login(email: $email, password: $password) {
+                success
+                token
+                user {
+                  id
+                  username
+                  role
+                  fullName
+                  avatarUrl
+                }
+                message
+              }
+            }
+          `,
+          variables: { email, password },
+        }),
+      });
 
-    if (foundUser) {
-      if (foundUser.role === "admin") {
-        router.push("/admin");
+      const result = await response.json();
+
+      if (result.data?.login.success) {
+        const { token, user } = result.data.login;
+
+        // Simpan di localStorage
+        localStorage.setItem("authToken", token);
+        localStorage.setItem("user", JSON.stringify(user));
+
+        // Redirect berdasarkan role
+        if (user.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/map");
+        }
       } else {
-        router.push("/map");
+        alert(result.data?.login.message || "Login gagal");
       }
-    } else {
-      alert("Email atau password salah.");
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Terjadi kesalahan saat login. Cek koneksi backend.");
     }
   };
 
