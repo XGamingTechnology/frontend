@@ -600,6 +600,10 @@
     height: calc(var(--spacing) * 40);
   }
 
+  .h-64 {
+    height: calc(var(--spacing) * 64);
+  }
+
   .h-auto {
     height: auto;
   }
@@ -630,6 +634,10 @@
 
   .min-h-screen {
     min-height: 100vh;
+  }
+
+  .w-1 {
+    width: calc(var(--spacing) * 1);
   }
 
   .w-2 {
@@ -731,6 +739,10 @@
 
   .cursor-col-resize {
     cursor: col-resize;
+  }
+
+  .cursor-ew-resize {
+    cursor: ew-resize;
   }
 
   .cursor-grab {
@@ -1745,6 +1757,12 @@
   @media (hover: hover) {
     .hover\:bg-gray-300:hover {
       background-color: var(--color-gray-300);
+    }
+  }
+
+  @media (hover: hover) {
+    .hover\:bg-gray-400:hover {
+      background-color: var(--color-gray-400);
     }
   }
 

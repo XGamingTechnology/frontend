@@ -16,7 +16,7 @@ interface LayerDefinition {
   description: string;
   layerType: string;
   source: string;
-  meta: Record<string, any>; // ✅ DIPERBAIKI: Tambahkan titik dua (:) di sini
+  meta: Record<string, any>;
 }
 
 type LayerVisibilityState = Record<string, boolean>;
@@ -40,6 +40,10 @@ interface DataContextType {
   // --- Data Echosounder ---
   echosounderData: EchosounderPoint[];
   setEchosounderData: React.Dispatch<React.SetStateAction<EchosounderPoint[]>>;
+  layerGroups: LayerGroup[] | null;
+  loadingLayerGroups: boolean;
+  errorLayerGroups: string | null;
+  refreshLayerGroups: () => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -58,7 +62,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: `{ spatialFeatures { id layerType name description geometry source metadata } }`,
+          query: `{ spatialFeatures { id layerType name description geometry source meta } }`,
         }),
       });
 
@@ -78,7 +82,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             description: f.description,
             layerType: f.layerType,
             source: f.source,
-            ...f.metadata,
+            ...f.meta,
           },
           geometry: f.geometry,
         })),
@@ -105,7 +109,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               $description: String
               $geometry: GeometryInput!
               $source: String
-              $meta: MetadataInput
+              $meta: MetadataInput  # ✅ DIPERBAIKI: MetataInput → MetadataInput
             ) {
               createSpatialFeature(
                 layerType: $layerType
@@ -113,7 +117,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 description: $description
                 geometry: $geometry
                 source: $source
-                metadata: $meta
+                meta: $meta
               ) {
                 id
                 layerType
@@ -173,7 +177,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLayerDefinitions(layers);
 
       // Baca dari localStorage jika ada
-      let savedVisibility;
+      let savedVisibility: LayerVisibilityState | undefined;
       try {
         const saved = localStorage.getItem("layerVisibility");
         if (saved) savedVisibility = JSON.parse(saved);
@@ -181,6 +185,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn("Gagal baca layerVisibility dari localStorage");
       }
 
+      // Inisialisasi visibilitas dari layerDefinitions
       const initialVisibility = layers.reduce((acc: LayerVisibilityState, layer: LayerDefinition) => {
         acc[layer.id] = savedVisibility?.[layer.id] ?? false;
         return acc;
@@ -231,7 +236,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLayerVisibility,
         loadingLayers,
         errorLayers,
-        refreshLayers: loadLayers,
+        refreshLayers: loadLayers, // ✅ Sudah benar
 
         // --- Echosounder ---
         echosounderData,

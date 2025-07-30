@@ -10,7 +10,7 @@ export default function SidebarLeft() {
   const { activeTool, setActiveTool } = useTool();
   const { layerDefinitions, layerVisibility, setLayerVisibility, loadingLayers, errorLayers } = useData();
 
-  // 🔧 Tools tetap bisa hardcode (opsional: bisa juga dari backend)
+  // 🔧 Tools (bisa dari backend nanti)
   const toolOptions: {
     value: Tool;
     label: string;
@@ -37,12 +37,11 @@ export default function SidebarLeft() {
     },
   ];
 
-  // ✅ Handler: Toggle visibilitas layer
+  // ✅ Toggle visibilitas layer
   const handleLayerVisibilityChange = (layerId: string) => {
     const newVisibility = { ...layerVisibility, [layerId]: !layerVisibility[layerId] };
     setLayerVisibility(newVisibility);
 
-    // 🧠 Opsional: Simpan ke localStorage agar tetap saat reload
     try {
       localStorage.setItem("layerVisibility", JSON.stringify(newVisibility));
     } catch (err) {
@@ -50,8 +49,10 @@ export default function SidebarLeft() {
     }
   };
 
-  // ✅ Fungsi: Reset visibilitas semua layer
+  // ✅ Reset semua layer visibility
   const handleResetLayers = () => {
+    if (!Array.isArray(layerDefinitions)) return;
+
     const reset = layerDefinitions.reduce((acc, layer) => ({ ...acc, [layer.id]: false }), {} as Record<string, boolean>);
     setLayerVisibility(reset);
     try {
@@ -89,7 +90,7 @@ export default function SidebarLeft() {
           )}
 
           {/* Data Tersedia */}
-          {!loadingLayers && !errorLayers && Array.isArray(layerDefinitions) && layerDefinitions.length > 0 ? (
+          {!loadingLayers && !errorLayers && Array.isArray(layerDefinitions) && layerDefinitions.length > 0 && (
             <div className="space-y-2">
               {layerDefinitions.map((layer) => (
                 <label key={layer.id} className="flex items-center justify-between hover:bg-gray-100 p-2 rounded-md transition cursor-pointer group">
@@ -103,16 +104,16 @@ export default function SidebarLeft() {
                 </label>
               ))}
             </div>
-          ) : (
-            !loadingLayers &&
-            !errorLayers && (
-              <div className="text-center py-2">
-                <p className="text-gray-500 text-sm">Tidak ada layer tersedia.</p>
-                <button onClick={handleResetLayers} className="text-xs text-blue-500 hover:underline mt-1">
-                  Reset visibilitas
-                </button>
-              </div>
-            )
+          )}
+
+          {/* Tidak Ada Data */}
+          {!loadingLayers && !errorLayers && (!Array.isArray(layerDefinitions) || layerDefinitions.length === 0) && (
+            <div className="text-center py-2">
+              <p className="text-gray-500 text-sm">Tidak ada layer tersedia.</p>
+              <button onClick={handleResetLayers} className="text-xs text-blue-500 hover:underline mt-1">
+                Reset visibilitas
+              </button>
+            </div>
           )}
         </div>
 

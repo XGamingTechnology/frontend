@@ -6,24 +6,11 @@ import "leaflet/dist/leaflet.css";
 import { MutableRefObject, useEffect, useState } from "react";
 import { Map as LeafletMap, Icon, LatLngExpression } from "leaflet";
 import { useTool } from "@/context/ToolContext";
-import { useData } from "@/context/DataContext"; // 1. Impor useData
+import { useData } from "@/context/DataContext";
 import ToponimiFormModal from "@/components/forms/ToponimiFormModal";
 import SimulasiPanel from "@/components/panels/SimulasiPanel";
 import type { Feature, LineString, Point } from "geojson";
 import { generateTransek } from "@/lib/geotools/generateTransek";
-
-// --- Tipe untuk Spatial Feature dari GraphQL ---
-interface SpatialFeature {
-  id: string;
-  layerType: string;
-  name: string;
-  description: string;
-  geometry: GeoJSON.Geometry;
-  source: string;
-  metadata: Record<string, any>;
-  createdAt: string;
-  createdBy: string | null;
-}
 
 // --- ICONS ---
 const buoyIcon = new Icon({
@@ -79,7 +66,7 @@ function useSpatialFeatures(layerType?: string, source?: string) {
                   description
                   geometry
                   source
-                  metadata
+                  meta
                 }
               }
             `,
@@ -92,13 +79,12 @@ function useSpatialFeatures(layerType?: string, source?: string) {
         }
 
         const result = await response.json();
-
         if (result.errors) {
           throw new Error(result.errors.map((e: any) => e.message).join(", "));
         }
 
         if (result.data?.spatialFeatures) {
-          const mapped = result.data.spatialFeatures.map((f: SpatialFeature) => ({
+          const mapped = result.data.spatialFeatures.map((f: any) => ({
             type: "Feature",
             properties: {
               id: f.id,
@@ -106,7 +92,7 @@ function useSpatialFeatures(layerType?: string, source?: string) {
               description: f.description,
               layerType: f.layerType,
               source: f.source,
-              ...f.metadata,
+              ...f.meta,
             },
             geometry: f.geometry,
           }));
@@ -144,13 +130,18 @@ export default function MapComponent({
   };
   const tileUrl = tileLayers[basemapType] || tileLayers["osm"];
 
-  // --- Ambil data spasial dari backend ---
+  // --- Gunakan DataContext untuk layer dinamis ---
+  const { layerDefinitions, layerVisibility } = useData();
+
+  // --- Gunakan ToolContext untuk state UI ---
+  const { activeTool, setActiveTool, formLatLng, setFormLatLng, showToponimiForm, setShowToponimiForm, routePoints, setRoutePoints } = useTool();
+
+  // --- Ambil SEMUA data di sini, sebelum loop ---
   const { features: centerlineFeatures } = useSpatialFeatures("centerline");
   const { features: sungaiFeatures } = useSpatialFeatures("sungai");
   const { features: toponimiFeatures } = useSpatialFeatures("toponimi");
-
-  // --- Gunakan DataContext untuk visibilitas layer ---
-  const { layerVisibility } = useData();
+  const { features: batimetriFeatures } = useSpatialFeatures("batimetri");
+  const { features: areaSungaiFeatures } = useSpatialFeatures("area_sungai");
 
   // --- State untuk hasil generate transek ---
   const [allTransects, setAllTransects] = useState<Feature<LineString>[]>([]);
@@ -158,8 +149,6 @@ export default function MapComponent({
 
   // --- State untuk menggambar garis ---
   const [drawnLine, setDrawnLine] = useState<L.LatLng[]>([]);
-
-  const { activeTool, setActiveTool, formLatLng, setFormLatLng, showToponimiForm, setShowToponimiForm, routePoints, setRoutePoints } = useTool();
 
   const isDrawing = activeTool === "drawline";
   const hasLine = drawnLine.length > 0;
@@ -265,6 +254,7 @@ export default function MapComponent({
               $description: String
               $geometry: GeometryInput!
               $source: String
+              $meta: MetadataInput
             ) {
               createSpatialFeature(
                 layerType: $layerType
@@ -272,6 +262,7 @@ export default function MapComponent({
                 description: $description
                 geometry: $geometry
                 source: $source
+                meta: $meta
               ) {
                 id
                 layerType
@@ -287,6 +278,7 @@ export default function MapComponent({
             description: deskripsi,
             geometry: pointGeoJSON,
             source: "user_input",
+            meta: null,
           },
         }),
       });
@@ -320,30 +312,62 @@ export default function MapComponent({
         <MapRefSetter mapRef={mapRef} />
         {userLocation && <UserLocationMarker location={userLocation} />}
 
-        {/* --- TAMPILAN DATA DINAMIS --- */}
-        {layerVisibility.centerline && centerlineFeatures.map((feature) => <GeoJSON key={feature.properties?.id} data={feature} style={{ color: "blue", weight: 3 }} />)}
+        {/* --- RENDER SEMUA LAYER DINAMIS --- */}
+        {layerDefinitions?.map((layer) => {
+          const isVisible = layerVisibility[layer.id] ?? false;
+          let features: Feature[] = [];
 
-        {layerVisibility.sungai && sungaiFeatures.map((feature) => <GeoJSON key={feature.properties?.id} data={feature} style={{ color: "#0284c7", weight: 2 }} />)}
+          // Ambil data berdasarkan layerType
+          switch (layer.layerType) {
+            case "centerline":
+              features = centerlineFeatures;
+              break;
+            case "sungai":
+              features = sungaiFeatures;
+              break;
+            case "toponimi":
+              features = toponimiFeatures;
+              break;
+            case "batimetri":
+              features = batimetriFeatures;
+              break;
+            case "area_sungai":
+              features = areaSungaiFeatures;
+              break;
+            default:
+              features = [];
+          }
 
-        {layerVisibility.toponimi &&
-          toponimiFeatures.map((feature) => (
+          if (!isVisible || features.length === 0) return null;
+
+          return (
             <GeoJSON
-              key={feature.properties?.id}
-              data={feature}
-              pointToLayer={(point, latlng) =>
-                L.circleMarker(latlng, {
-                  radius: 6,
-                  color: feature.properties?.markerColor || "#9333ea",
-                  fillColor: feature.properties?.fillColor || "#9333ea",
-                  fillOpacity: 0.7,
-                })
-              }
+              key={layer.id}
+              data={{ type: "FeatureCollection", features }}
+              style={{
+                fillColor: layer.meta?.fillColor || "#0284c7",
+                color: layer.meta?.color || "#0284c7",
+                fillOpacity: layer.meta?.fillOpacity || 0.4,
+                weight: layer.meta?.weight || 2,
+              }}
+              pointToLayer={(point, latlng) => {
+                if (layer.layerType === "toponimi") {
+                  return L.circleMarker(latlng, {
+                    radius: layer.meta?.radius || 6,
+                    color: layer.meta?.color || "#9333ea",
+                    fillColor: layer.meta?.fillColor || "#9333ea",
+                    fillOpacity: layer.meta?.fillOpacity || 0.7,
+                  });
+                }
+                return L.marker(latlng, { icon: buoyIcon });
+              }}
               onEachFeature={(feature, layer) => {
-                const popupContent = `<strong>${feature.properties?.name}</strong><br/>${feature.properties?.description}`;
+                const popupContent = `<strong>${feature.properties?.name}</strong><br/>${feature.properties?.description || ""}`;
                 layer.bindPopup(popupContent);
               }}
             />
-          ))}
+          );
+        })}
 
         {/* --- GARIS YANG DIGAMBAR --- */}
         {drawnLine.length > 0 && <Polyline positions={drawnLine} color="red" weight={4} />}
