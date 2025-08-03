@@ -1,39 +1,28 @@
 // === IMPORTS ===
 import * as turf from "@turf/turf";
-import { Feature, LineString, Point } from "geojson"; // Hapus Polygon dari sini
+import { Feature, LineString, Point } from "geojson";
 
-// === INTERFACE ===
-// Sesuaikan interface untuk hasil yang hanya berisi transek mentah
 interface GenerateRawTransectsResult {
   allTransects: Feature<LineString>[];
-  samplingPoints: Feature<Point>[]; // Titik tengah setiap transek
+  samplingPoints: Feature<Point>[];
   metadata: {
     totalLength: number;
     spasi: number;
     panjang: number;
     jumlahTransek: number;
     timestamp: string;
-    useAutoBuffer: boolean; // Simpan info ini untuk referensi
+    useAutoBuffer: boolean;
   };
   riverLine: Feature<LineString>;
-  // polygon akan dihapus dari return value karena tidak digunakan untuk clipping di sini
 }
 
-// === FUNGSI UTAMA (HANYA GENERATE TRANSEK MENTAH) ===
-export function generateTransek( // Bisa tetap nama generateTransek
-  riverLine: Feature<LineString>,
-  // Hapus polygonFeature dari parameter karena tidak digunakan untuk generate
-  spasi: number,
-  panjang: number,
-  useAutoBuffer: boolean = false // Tetap terima, tapi abaikan untuk clipping
-): GenerateRawTransectsResult | null {
+export function generateTransek(riverLine: Feature<LineString>, spasi: number, panjang: number, useAutoBuffer: boolean = false): GenerateRawTransectsResult | null {
   const allTransects: Feature<LineString>[] = [];
   const samplingPoints: Feature<Point>[] = [];
 
   console.log("🚀 Memulai generateRawTransects (tanpa clipping)");
-  console.log("PropertyParams:", { spasi, panjang, useAutoBuffer }); // Log tetap ada
+  console.log("PropertyParams:", { spasi, panjang, useAutoBuffer });
 
-  // --- VALIDASI INPUT DASAR ---
   if (!riverLine) {
     console.warn("❌ Input tidak valid: riverLine kosong");
     return null;
@@ -44,14 +33,12 @@ export function generateTransek( // Bisa tetap nama generateTransek
     return null;
   }
 
-  // --- HITUNG PANJANG SUNGAI & JUMLAH TRANSEK ---
   const totalLength = turf.length(riverLine, { units: "meters" });
   const steps = Math.floor(totalLength / spasi);
 
   console.log(`📏 Total panjang sungai: ${totalLength.toFixed(2)} meter`);
   console.log(`🎯 Jumlah transek yang akan dibuat: ${steps + 1} (spasi: ${spasi}m)`);
 
-  // --- LOOP UNTUK SETIAP TRANSEK ---
   for (let i = 0; i <= steps; i++) {
     const dist = i * spasi;
     let center, prev, next;
@@ -63,17 +50,13 @@ export function generateTransek( // Bisa tetap nama generateTransek
       continue;
     }
 
-    // --- OFFSET DINAMIS UNTUK PERHITUNGAN BEARING ---
-    const offset = Math.max(1, Math.min(spasi / 2, 5)); // Antara 1m sampai 5m
+    const offset = Math.max(1, Math.min(spasi / 2, 5));
 
     try {
-      // Hindari jarak 0 untuk prev
       prev = turf.along(riverLine, Math.max(dist - offset, 0.001), { units: "meters" });
-      // Hindari melebihi panjang total untuk next
       next = turf.along(riverLine, Math.min(dist + offset, totalLength), { units: "meters" });
     } catch (e: any) {
       console.warn(`❌ Gagal ambil titik prev/next di dist=${dist}`, e?.message);
-      // Jika gagal, skip transek ini
       continue;
     }
 
@@ -81,13 +64,11 @@ export function generateTransek( // Bisa tetap nama generateTransek
     const normalBearing = bearing + 90;
     const normalizedNormalBearing = ((normalBearing % 360) + 360) % 360;
 
-    // --- GENERATE TRANSEK TEGAK LURUS ---
     const p1 = turf.destination(center, panjang / 2, normalizedNormalBearing, { units: "meters" });
     const p2 = turf.destination(center, panjang / 2, normalizedNormalBearing + 180, { units: "meters" });
 
     const transect = turf.lineString([p1.geometry.coordinates, p2.geometry.coordinates]);
 
-    // --- TAMBAHKAN ID DAN INFO ---
     const id = `TR_RAW-${String(i + 1).padStart(3, "0")}`;
     const transectWithProps = turf.lineString(transect.geometry.coordinates, {
       id,
@@ -96,44 +77,44 @@ export function generateTransek( // Bisa tetap nama generateTransek
       bearing: parseFloat(bearing.toFixed(2)),
       normalBearing: parseFloat(normalizedNormalBearing.toFixed(2)),
       center: center.geometry.coordinates,
-      color: "#0000FF", // Biru untuk menandakan mentah
-      // Tambahkan panjang teoritis transek
+      color: "#0000FF",
       theoreticalLength: panjang,
     });
 
     allTransects.push(transectWithProps);
 
-    // --- TAMBAHKAN SAMPLING POINT (CENTER) ---
+    // ✅ Perbaiki: pastikan coordinates [lng, lat]
     samplingPoints.push({
       type: "Feature",
-      geometry: center.geometry,
+      geometry: {
+        type: "Point",
+        coordinates: [center.geometry.coordinates[0], center.geometry.coordinates[1]],
+      },
       properties: {
         transectId: id,
         index: i,
         distanceFromStart: parseFloat(dist.toFixed(2)),
-        color: "#FF0000", // Merah untuk menandakan titik
+        color: "#FF0000",
       },
     });
 
     console.log(`🏗️  Transek mentah dibuat: ${id} (dist: ${dist.toFixed(2)}m)`);
   }
 
-  // --- SIAPKAN OUTPUT ---
   const metadata = {
     totalLength,
     spasi,
     panjang,
     jumlahTransek: allTransects.length,
     timestamp: new Date().toISOString(),
-    useAutoBuffer, // Simpan untuk info
+    useAutoBuffer,
   };
 
   console.log(`\n✅=== GENERATE TRANSEK MENTAH SELESAI ===✅`);
   console.log(`📊 Jumlah transek mentah: ${allTransects.length}`);
   console.log(`📊 Jumlah sampling points: ${samplingPoints.length}`);
 
-  // --- INSTRUKSI VISUALISASI ---
-  console.log("%c📋 SALIN DATA DI BAWAH KE https://geojson.io   ", "color: blue; font-weight: bold");
+  console.log("%c📋 SALIN DATA DI BAWAH KE https://geojson.io     ", "color: blue; font-weight: bold");
   console.log("👉 River Line:", JSON.stringify(riverLine));
   console.log("👉 Semua Transek Mentah:", JSON.stringify({ type: "FeatureCollection", features: allTransects }));
   console.log("👉 Semua Sampling Points:", JSON.stringify({ type: "FeatureCollection", features: samplingPoints }));
@@ -144,6 +125,5 @@ export function generateTransek( // Bisa tetap nama generateTransek
     samplingPoints,
     metadata,
     riverLine,
-    // polygon tidak dikembalikan karena tidak digunakan
   };
 }
