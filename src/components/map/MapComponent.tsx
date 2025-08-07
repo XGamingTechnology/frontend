@@ -10,8 +10,6 @@ import { useData } from "@/context/DataContext";
 import ToponimiFormModal from "@/components/forms/ToponimiFormModal";
 import SimulasiPanel from "@/components/panels/SimulasiPanel";
 import type { Feature, LineString, Point } from "geojson";
-import * as turf from "@turf/turf";
-import { generateTransek } from "@/lib/geotools/generateTransek";
 
 // --- ICONS ---
 const buoyIcon = new Icon({
@@ -47,59 +45,27 @@ function useSpatialFeatures(layerType?: string, source?: string) {
   const [features, setFeatures] = useState<Feature[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { features: allFeatures, loading: loadingAll, error: errorAll } = useData();
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch("http://localhost:5000/graphql", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: `
-              query GetSpatialFeatures($layerType: String, $source: String) {
-                spatialFeatures(layerType: $layerType, source: $source) {
-                  id
-                  layerType
-                  name
-                  description
-                  geometry
-                  source
-                  meta
-                }
-              }
-            `,
-            variables: { layerType, source },
-          }),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
-        if (result.errors) {
-          throw new Error(result.errors.map((e: any) => e.message).join(", "));
-        }
-        if (result.data?.spatialFeatures) {
-          const mapped = result.data.spatialFeatures.map((f: any) => {
-            return turf.feature(f.geometry, {
-              id: f.id,
-              name: f.name,
-              description: f.description,
-              layerType: f.layerType,
-              source: f.source,
-              ...f.meta,
-            });
-          });
-          setFeatures(mapped);
-        }
-      } catch (err: any) {
-        console.error("Gagal ambil data spasial:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [layerType, source]);
+    if (loadingAll) return;
+    if (errorAll) {
+      setError(errorAll);
+      setLoading(false);
+      return;
+    }
+
+    let filtered = allFeatures?.features || [];
+    if (layerType) {
+      filtered = filtered.filter((f) => f.properties?.layerType === layerType);
+    }
+    if (source) {
+      filtered = filtered.filter((f) => f.properties?.source === source);
+    }
+
+    setFeatures(filtered);
+    setLoading(false);
+  }, [allFeatures, loadingAll, errorAll, layerType, source]);
 
   return { features, loading, error };
 }
@@ -122,10 +88,7 @@ export default function MapComponent({
   };
   const tileUrl = tileLayers[basemapType] || tileLayers["osm"];
 
-  // --- Gunakan DataContext untuk layer dinamis ---
-  const { layerDefinitions, layerVisibility, setLayerVisibility, addFeature, riverLine, setRiverLine } = useData();
-
-  // --- Gunakan ToolContext untuk state UI ---
+  const { layerDefinitions, layerVisibility, setLayerVisibility, addFeature, refreshData } = useData();
   const { activeTool, setActiveTool, formLatLng, setFormLatLng, showToponimiForm, setShowToponimiForm, routePoints, setRoutePoints } = useTool();
 
   // --- Ambil SEMUA data dari database ---
@@ -135,12 +98,8 @@ export default function MapComponent({
   const { features: batimetriFeatures } = useSpatialFeatures("batimetri");
   const { features: areaSungaiFeatures } = useSpatialFeatures("area_sungai");
   const { features: riverLineFeatures } = useSpatialFeatures("river_line");
-  const { features: samplingPointFeatures } = useSpatialFeatures("sampling_point");
-  const { features: transectLineFeatures } = useSpatialFeatures("transect_line");
-
-  // --- State untuk hasil generate transek ---
-  const [allTransects, setAllTransects] = useState<Feature<LineString>[]>([]);
-  const [samplingPoints, setSamplingPoints] = useState<Feature<Point>[]>([]);
+  const { features: samplingPointFeatures } = useSpatialFeatures("valid_sampling_point");
+  const { features: transectLineFeatures } = useSpatialFeatures("valid_transect_line");
 
   // --- State untuk menggambar garis ---
   const [drawnLine, setDrawnLine] = useState<L.LatLng[]>([]);
@@ -153,164 +112,53 @@ export default function MapComponent({
 
   const clearDrawnLine = () => {
     setDrawnLine([]);
-    setAllTransects([]);
-    setSamplingPoints([]);
-    setRiverLine(null);
   };
 
-  // --- Simpan hasil draw ke database ---
+  // --- SIMPAN GARIS SUNGAI (DRAFT) ---
   const handleSaveLine = async () => {
     if (drawnLine.length < 2) {
-      alert("Garis belum lengkap.");
+      alert("Garis harus memiliki minimal 2 titik.");
       return;
     }
+
     const lineCoords = drawnLine.map((latlng) => [latlng.lng, latlng.lat] as [number, number]);
-    const geojsonLine: Feature<LineString> = turf.lineString(lineCoords, {
-      layerType: "river_line",
-      name: `Rute Sungai - ${new Date().toLocaleDateString()}`,
-      description: "Garis dasar untuk transek otomatis",
-      createdAt: new Date().toISOString(),
-      source: "manual",
-    });
+    const geojsonLine = {
+      type: "LineString",
+      coordinates: lineCoords,
+    };
+
     try {
-      await addFeature(geojsonLine);
-      setRiverLine(geojsonLine);
-      alert("✅ Garis sungai berhasil disimpan ke database.");
-    } catch (err: any) {
-      console.error("Gagal simpan river_line:", err);
-      alert("Gagal menyimpan ke server: " + err.message);
-    }
-  };
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `
+            mutation SaveRiverLineDraft($geom: JSON!) {
+              saveRiverLineDraft(geom: $geom) {
+                success
+                message
+                draftId
+              }
+            }
+          `,
+          variables: { geom: geojsonLine },
+        }),
+      });
 
-  // --- SIMPAN SAMPLING POINTS KE DATABASE (PERBAIKAN PENUH) ---
-  const saveSamplingPoints = async (points: Feature<Point>[]) => {
-    let savedCount = 0;
-    const failedPoints: any[] = [];
-
-    const promises = points.map(async (point, index) => {
-      try {
-        const coords = point.geometry.coordinates;
-        if (!coords || coords.length !== 2) {
-          throw new Error("Koordinat tidak valid");
-        }
-
-        // 🔢 PAKSA ke number primitif
-        const lng = parseFloat(coords[0].toString());
-        const lat = parseFloat(coords[1].toString());
-
-        if (isNaN(lng) || isNaN(lat)) {
-          throw new Error(`Koordinat bukan angka: [${coords[0]}, ${coords[1]}]`);
-        }
-
-        // 🔥 DEBUG: Cek tipe sebelum kirim
-        console.log(`📤 [saveSamplingPoints] Point ${index}:`, { lng, lat, typeofLng: typeof lng, typeofLat: typeof lat });
-
-        // ✅ Buat feature secara langsung, tanpa turf.feature jika tidak perlu
-        const feature = {
-          type: "Feature" as const,
-          geometry: {
-            type: "Point" as const,
-            coordinates: [lng, lat] as [number, number],
-          },
-          properties: {
-            layerType: "sampling_point",
-            name: `Sampling Point - ${point.properties?.transectId}`,
-            description: `Titik tengah transek ${point.properties?.transectId}`,
-            transectId: point.properties?.transectId,
-            distanceFromStart: parseFloat((point.properties?.distanceFromStart || 0).toFixed(2)),
-            source: "manual",
-          },
-        };
-
-        await addFeature(feature);
-        savedCount++;
-      } catch (err: any) {
-        console.error(`❌ Gagal simpan point ${index}:`, err);
-        failedPoints.push({ index, error: err.message });
-      }
-    });
-
-    await Promise.all(promises);
-
-    if (failedPoints.length === 0) {
-      alert(`✅ ${savedCount} sampling point berhasil disimpan!`);
-    } else {
-      alert(`⚠️ ${savedCount} berhasil, ${failedPoints.length} gagal. Cek console.`);
-    }
-  };
-
-  // --- SIMPAN TRANSEK LINES KE DATABASE ---
-  const saveTransectLines = async (transects: Feature<LineString>[]) => {
-    let savedCount = 0;
-    const promises = transects.map(async (transect) => {
-      try {
-        const coords = transect.geometry.coordinates;
-        if (!coords || !Array.isArray(coords)) {
-          console.warn("Koordinat transek tidak valid:", transect);
-          return;
-        }
-
-        // Validasi semua titik
-        for (const line of coords) {
-          if (line.length !== 2 || isNaN(parseFloat(line[0])) || isNaN(parseFloat(line[1]))) {
-            throw new Error("Koordinat transek mengandung nilai tidak valid");
-          }
-        }
-
-        const feature = {
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: coords.map((coord) => [parseFloat(coord[0].toString()), parseFloat(coord[1].toString())]) as [number, number][],
-          },
-          properties: {
-            layerType: "transect_line",
-            name: transect.properties?.id || `Transek-${transect.properties?.index}`,
-            description: `Transek tegak lurus sungai, jarak: ${transect.properties?.distanceFromStart}m`,
-            distanceFromStart: parseFloat((transect.properties?.distanceFromStart || 0).toFixed(2)),
-            bearing: transect.properties?.bearing,
-            source: "manual",
-          },
-        };
-
-        await addFeature(feature);
-        savedCount++;
-      } catch (err) {
-        console.error("Gagal simpan transect line:", err);
-      }
-    });
-
-    await Promise.all(promises);
-    alert(`✅ ${savedCount} dari ${transects.length} garis transek berhasil disimpan!`);
-  };
-
-  const handleGenerateTransek = (spasi: number, panjang: number) => {
-    if (!drawnLine || drawnLine.length < 2) {
-      alert("Garis sungai belum digambar.");
-      return;
-    }
-    const lineCoords = drawnLine.map((latlng) => [latlng.lng, latlng.lat] as [number, number]);
-    const riverLine: Feature<LineString> = turf.lineString(lineCoords);
-    try {
-      const result = generateTransek(riverLine, spasi, panjang, true);
-      if (result) {
-        setAllTransects(result.allTransects);
-        setSamplingPoints(result.samplingPoints);
-        saveTransectLines(result.allTransects);
-        saveSamplingPoints(result.samplingPoints);
+      const data = await response.json();
+      if (data.data?.saveRiverLineDraft.success) {
+        alert(`✅ ${data.data.saveRiverLineDraft.message}`);
       } else {
-        alert("Gagal menghasilkan transek.");
+        throw new Error(data.errors?.[0]?.message || "Gagal simpan draft");
       }
-    } catch (error) {
-      console.error("Error saat memanggil generateTransek:", error);
-      alert("Terjadi kesalahan saat menghasilkan transek.");
+    } catch (err: any) {
+      console.error("❌ Gagal simpan draft:", err);
+      alert(`❌ Gagal: ${err.message}`);
     }
   };
 
   const handleStartDrawing = () => {
     setDrawnLine([]);
-    setAllTransects([]);
-    setSamplingPoints([]);
     setActiveTool("drawline");
   };
 
@@ -344,7 +192,7 @@ export default function MapComponent({
       },
       contextmenu() {
         if (activeTool === "drawline" && drawnLine.length > 1) {
-          alert("Garis selesai digambar.");
+          alert("Garis selesai digambar. Klik 'Simpan Draft' untuk menyimpan.");
         }
       },
     });
@@ -430,6 +278,8 @@ export default function MapComponent({
         {layerDefinitions?.map((layer) => {
           const isVisible = layerVisibility[layer.id] ?? false;
           let features: Feature[] = [];
+          let pointLayerType = "";
+
           switch (layer.layerType) {
             case "centerline":
               features = centerlineFeatures;
@@ -447,18 +297,42 @@ export default function MapComponent({
               features = areaSungaiFeatures;
               break;
             case "river_line":
-              features = [...(riverLine ? [riverLine] : []), ...riverLineFeatures];
+              features = riverLineFeatures;
               break;
-            case "sampling_point":
+            case "valid_sampling_point":
               features = samplingPointFeatures;
+              pointLayerType = "valid_sampling_point";
               break;
-            case "transect_line":
+            case "valid_transect_line":
               features = transectLineFeatures;
               break;
             default:
               features = [];
           }
+
           if (!isVisible || features.length === 0) return null;
+
+          if (pointLayerType) {
+            return (
+              <GeoJSON
+                key={layer.id}
+                data={{ type: "FeatureCollection", features }}
+                pointToLayer={(point, latlng) => {
+                  return L.circleMarker(latlng, {
+                    radius: layer.meta?.radius || 6,
+                    color: point.properties?.color || layer.meta?.color || "#16a34a",
+                    fillColor: point.properties?.color || layer.meta?.fillColor || "#16a34a",
+                    fillOpacity: layer.meta?.fillOpacity || 0.7,
+                  });
+                }}
+                onEachFeature={(feature, layer) => {
+                  const popupContent = `<strong>${feature.properties?.name || feature.properties?.transectId}</strong><br/>${feature.properties?.description || ""}`;
+                  layer.bindPopup(popupContent);
+                }}
+              />
+            );
+          }
+
           return (
             <GeoJSON
               key={layer.id}
@@ -469,19 +343,8 @@ export default function MapComponent({
                 fillOpacity: layer.meta?.fillOpacity || 0.4,
                 weight: layer.meta?.weight || 2,
               }}
-              pointToLayer={(point, latlng) => {
-                if (["toponimi", "sampling_point"].includes(point.properties?.layerType || "")) {
-                  return L.circleMarker(latlng, {
-                    radius: layer.meta?.radius || 6,
-                    color: layer.meta?.color || "#9333ea",
-                    fillColor: layer.meta?.fillColor || "#9333ea",
-                    fillOpacity: layer.meta?.fillOpacity || 0.7,
-                  });
-                }
-                return L.marker(latlng, { icon: buoyIcon });
-              }}
               onEachFeature={(feature, layer) => {
-                const popupContent = `<strong>${feature.properties?.name}</strong><br/>${feature.properties?.description || ""}`;
+                const popupContent = `<strong>${feature.properties?.name || feature.properties?.transectId}</strong><br/>${feature.properties?.description || ""}`;
                 layer.bindPopup(popupContent);
               }}
             />
@@ -489,44 +352,7 @@ export default function MapComponent({
         })}
 
         {/* --- GARIS YANG DIGAMBAR --- */}
-        {drawnLine.length > 0 && <Polyline positions={drawnLine} color="red" weight={4} />}
-
-        {/* --- HASIL GENERATE TRANSEK --- */}
-        {allTransects.map((transek) => (
-          <GeoJSON
-            key={transek.properties?.id || transek.properties?.index}
-            data={transek}
-            style={{
-              color: transek.properties?.color || "blue",
-              weight: 2,
-            }}
-            eventHandlers={{
-              click: () => {
-                alert(
-                  `ID: ${transek.properties?.id}
-Jarak: ${transek.properties?.distanceFromStart}m
-Bearing: ${transek.properties?.bearing}
-Panjang Teoritis: ${transek.properties?.theoreticalLength}m`
-                );
-              },
-            }}
-          />
-        ))}
-
-        {samplingPoints.map((pt, i) => (
-          <Marker
-            key={`sampling-${i}`}
-            position={[pt.geometry.coordinates[1], pt.geometry.coordinates[0]] as LatLngExpression}
-            icon={L.divIcon({
-              className: "sampling-icon",
-              html: `<div style="background:${pt.properties?.color || "#16a34a"};width:8px;height:8px;border-radius:50%;"></div>`,
-            })}
-          >
-            <Popup>
-              Sampling Point {pt.properties?.transectId || pt.properties?.index} (Dist: {pt.properties?.distanceFromStart}m)
-            </Popup>
-          </Marker>
-        ))}
+        {drawnLine.length > 0 && <Polyline positions={drawnLine} color="red" weight={4} opacity={0.8} />}
       </MapContainer>
 
       {/* --- MODAL FORM TOPONIMI --- */}
@@ -536,7 +362,16 @@ Panjang Teoritis: ${transek.properties?.theoreticalLength}m`
 
       {/* --- PANEL SIMULASI --- */}
       {(activeTool === "simulasi" || isDrawing) && (
-        <SimulasiPanel onGenerate={handleGenerateTransek} onStartDrawing={handleStartDrawing} isDrawing={isDrawing} hasLine={hasLine} onDeleteLine={clearDrawnLine} onClosePanel={() => setActiveTool(null)} onSaveLine={handleSaveLine} />
+        <SimulasiPanel
+          onStartDrawing={handleStartDrawing}
+          isDrawing={isDrawing}
+          hasLine={hasLine}
+          onDeleteLine={clearDrawnLine}
+          onClosePanel={() => setActiveTool(null)}
+          onSaveLine={handleSaveLine}
+          drawnLine={drawnLine}
+          setActiveTool={setActiveTool}
+        />
       )}
     </>
   );

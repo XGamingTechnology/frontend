@@ -37,12 +37,13 @@ export default function SidebarLeft() {
     },
   ];
 
-  // ✅ Toggle visibilitas layer
+  // ✅ Toggle visibilitas layer (per item)
   const handleLayerVisibilityChange = (layerId: string) => {
-    const newVisibility = { ...layerVisibility, [layerId]: !layerVisibility[layerId] };
-    setLayerVisibility(newVisibility);
+    setLayerVisibility(layerId, !layerVisibility[layerId]);
 
+    // ✅ Simpan ke localStorage
     try {
+      const newVisibility = { ...layerVisibility, [layerId]: !layerVisibility[layerId] };
       localStorage.setItem("layerVisibility", JSON.stringify(newVisibility));
     } catch (err) {
       console.warn("Gagal simpan layerVisibility ke localStorage", err);
@@ -53,8 +54,11 @@ export default function SidebarLeft() {
   const handleResetLayers = () => {
     if (!Array.isArray(layerDefinitions)) return;
 
-    const reset = layerDefinitions.reduce((acc, layer) => ({ ...acc, [layer.id]: false }), {} as Record<string, boolean>);
-    setLayerVisibility(reset);
+    const reset = layerDefinitions.reduce((acc, layer) => {
+      setLayerVisibility(layer.id, false); // Reset via context
+      return { ...acc, [layer.id]: false };
+    }, {} as Record<string, boolean>);
+
     try {
       localStorage.setItem("layerVisibility", JSON.stringify(reset));
     } catch (err) {
