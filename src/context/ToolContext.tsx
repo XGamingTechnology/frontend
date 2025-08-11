@@ -3,25 +3,29 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import * as L from "leaflet";
-import type { Feature, FeatureCollection, LineString, Point, GeoJsonProperties, Geometry } from "geojson";
+import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 
-// Tambahkan "drawline" di sini agar sesuai kebutuhan
-export type Tool = "toponimi" | "rute" | "echosounder" | "simulasi" | "drawline" | null;
+// --- Tipe Tool: Perjelas makna tiap tool ---
+export type Tool =
+  | "toponimi"
+  | "rute"
+  | "echosounder"
+  | "simulasi" // Menu utama simulasi
+  | "drawline" // Generic draw line (untuk kompatibilitas)
+  | "drawline-transek" // Khusus untuk transek sungai
+  | "drawpolygon" // Untuk survei area
+  | "drawpolygon-transek"
+  | null;
 
-export type LayerVisibility = {
-  toponimi: boolean;
-  sampling: boolean;
-  sungai: boolean;
-  batimetri: boolean;
-};
-
-// Hapus interface SamplingSummary dan EchosounderPoint dari sini jika tidak digunakan secara global
+// --- Tipe Mode Survei (opsional, untuk lacak konteks) ---
+type SurveyMode = "line" | "polygon" | null;
 
 interface ToolContextType {
-  // --- STATE TOOLS/UI ---
+  // --- STATE UTAMA ---
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
 
+  // --- FORM & INPUT ---
   showToponimiForm: boolean;
   setShowToponimiForm: (value: boolean) => void;
 
@@ -31,53 +35,63 @@ interface ToolContextType {
   routePoints: L.LatLng[];
   setRoutePoints: (value: L.LatLng[]) => void;
 
-  layers: LayerVisibility;
-  setLayers: React.Dispatch<React.SetStateAction<LayerVisibility>>;
+  // --- SURVEY MODE (untuk bantu panel tahu konteks) ---
+  surveyMode: SurveyMode;
+  setSurveyMode: (mode: SurveyMode) => void;
 
+  // --- LAYER VISIBILITY ---
+  layers: {
+    toponimi: boolean;
+    sampling: boolean;
+    sungai: boolean;
+    batimetri: boolean;
+  };
+  setLayers: React.Dispatch<
+    React.SetStateAction<{
+      toponimi: boolean;
+      sampling: boolean;
+      sungai: boolean;
+      batimetri: boolean;
+    }>
+  >;
+
+  // --- SELEKSI & DATA ---
   selectedFeatures: Feature<Geometry, GeoJsonProperties>[];
   setSelectedFeatures: (features: Feature<Geometry, GeoJsonProperties>[]) => void;
 
   geojsonData: FeatureCollection | null;
   setGeojsonData: (data: FeatureCollection | null) => void;
 
+  // --- UI ---
   showSidebarRight: boolean;
   setShowSidebarRight: React.Dispatch<React.SetStateAction<boolean>>;
-
-  // --- STATE drawline tool SUDAH DIHAPUS ---
-  // State `drawnLine` sekarang dikelola secara lokal di MapComponent.
-  // drawnLine: L.LatLng[];
-  // setDrawnLine: (value: L.LatLng[]) => void;
 }
 
 const ToolContext = createContext<ToolContextType | undefined>(undefined);
 
 export function ToolProvider({ children }: { children: ReactNode }) {
-  // --- STATE TOOLS/UI ---
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [showToponimiForm, setShowToponimiForm] = useState(false);
   const [formLatLng, setFormLatLng] = useState<L.LatLng | null>(null);
   const [routePoints, setRoutePoints] = useState<L.LatLng[]>([]);
-  const [layers, setLayers] = useState<LayerVisibility>({
+
+  // ✅ Tambah: lacak mode survei saat dalam alur simulasi
+  const [surveyMode, setSurveyMode] = useState<SurveyMode>(null);
+
+  const [layers, setLayers] = useState({
     toponimi: true,
     sampling: true,
     sungai: false,
     batimetri: true,
   });
+
   const [selectedFeatures, setSelectedFeatures] = useState<Feature<Geometry, GeoJsonProperties>[]>([]);
   const [geojsonData, setGeojsonData] = useState<FeatureCollection | null>(null);
   const [showSidebarRight, setShowSidebarRight] = useState(false);
 
-  // --- STATE UNTUK DRAWLINE TOOL SUDAH DIHAPUS ---
-  // State `drawnLine` sekarang dikelola secara lokal di MapComponent.
-  // const [drawnLine, setDrawnLine] = useState<L.LatLng[]>([]);
-
-  // Hapus useEffect yang menghitung samplingPoints, slicedLine, dll.
-  // Logika tersebut akan dipindah ke MapComponent atau DataContext
-
   return (
     <ToolContext.Provider
       value={{
-        // --- STATE TOOLS/UI ---
         activeTool,
         setActiveTool,
         showToponimiForm,
@@ -86,6 +100,8 @@ export function ToolProvider({ children }: { children: ReactNode }) {
         setFormLatLng,
         routePoints,
         setRoutePoints,
+        surveyMode, // ✅ Tambahkan
+        setSurveyMode, // ✅ Tambahkan
         layers,
         setLayers,
         selectedFeatures,
@@ -94,10 +110,6 @@ export function ToolProvider({ children }: { children: ReactNode }) {
         setGeojsonData,
         showSidebarRight,
         setShowSidebarRight,
-
-        // --- STATE UNTUK DRAWLINE TOOL SUDAH DIHAPUS ---
-        // drawnLine,
-        // setDrawnLine,
       }}
     >
       {children}

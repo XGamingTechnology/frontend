@@ -4,14 +4,14 @@ import * as L from "leaflet";
 import { MapContainer, TileLayer, useMapEvents, ZoomControl, useMap, Marker, Popup, GeoJSON, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { MutableRefObject, useEffect, useState } from "react";
-import { Map as LeafletMap, Icon, LatLngExpression } from "leaflet";
+import { Map as LeafletMap, Icon } from "leaflet";
 import { useTool } from "@/context/ToolContext";
 import { useData } from "@/context/DataContext";
 import ToponimiFormModal from "@/components/forms/ToponimiFormModal";
 import SimulasiPanel from "@/components/panels/SimulasiPanel";
-import type { Feature, LineString, Point } from "geojson";
+import LineSurveyPanel from "@/components/panels/LineSurveyPanel"; // ✅ Import langsung
+import type { Feature } from "geojson";
 
-// --- ICONS ---
 const buoyIcon = new Icon({
   iconUrl: "/Pin.svg",
   iconSize: [32, 32],
@@ -22,7 +22,6 @@ const userIcon = buoyIcon;
 const startIcon = buoyIcon;
 const endIcon = buoyIcon;
 
-// --- Komponen: Simpan referensi map ke ref ---
 function MapRefSetter({ mapRef }: { mapRef: MutableRefObject<LeafletMap | null> }) {
   const map = useMap();
   useEffect(() => {
@@ -31,7 +30,6 @@ function MapRefSetter({ mapRef }: { mapRef: MutableRefObject<LeafletMap | null> 
   return null;
 }
 
-// --- Komponen: Marker Lokasi User ---
 function UserLocationMarker({ location }: { location: [number, number] }) {
   return (
     <Marker position={location} icon={userIcon}>
@@ -40,34 +38,19 @@ function UserLocationMarker({ location }: { location: [number, number] }) {
   );
 }
 
-// --- Hook: Ambil data spatial dari GraphQL ---
 function useSpatialFeatures(layerType?: string, source?: string) {
+  const { features: allFeatures } = useData();
   const [features, setFeatures] = useState<Feature[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { features: allFeatures, loading: loadingAll, error: errorAll } = useData();
 
   useEffect(() => {
-    if (loadingAll) return;
-    if (errorAll) {
-      setError(errorAll);
-      setLoading(false);
-      return;
-    }
-
-    let filtered = allFeatures?.features || [];
-    if (layerType) {
-      filtered = filtered.filter((f) => f.properties?.layerType === layerType);
-    }
-    if (source) {
-      filtered = filtered.filter((f) => f.properties?.source === source);
-    }
-
+    if (!allFeatures) return;
+    let filtered = allFeatures.features || [];
+    if (layerType) filtered = filtered.filter((f) => f.properties?.layerType === layerType);
+    if (source) filtered = filtered.filter((f) => f.properties?.source === source);
     setFeatures(filtered);
-    setLoading(false);
-  }, [allFeatures, loadingAll, errorAll, layerType, source]);
+  }, [allFeatures, layerType, source]);
 
-  return { features, loading, error };
+  return { features };
 }
 
 export default function MapComponent({
@@ -81,6 +64,7 @@ export default function MapComponent({
   mapRef: MutableRefObject<LeafletMap | null>;
   userLocation?: [number, number] | null;
 }) {
+  // ✅ Perbaiki URL tile: hapus spasi
   const tileLayers: Record<string, string> = {
     osm: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -88,10 +72,9 @@ export default function MapComponent({
   };
   const tileUrl = tileLayers[basemapType] || tileLayers["osm"];
 
-  const { layerDefinitions, layerVisibility, setLayerVisibility, addFeature, refreshData } = useData();
-  const { activeTool, setActiveTool, formLatLng, setFormLatLng, showToponimiForm, setShowToponimiForm, routePoints, setRoutePoints } = useTool();
+  const { layerDefinitions, layerVisibility, refreshData } = useData();
+  const { activeTool, setActiveTool, formLatLng, setFormLatLng, showToponimiForm, setShowToponimiForm, routePoints, setRoutePoints, surveyMode, setSurveyMode } = useTool();
 
-  // --- Ambil SEMUA data dari database ---
   const { features: centerlineFeatures } = useSpatialFeatures("centerline");
   const { features: sungaiFeatures } = useSpatialFeatures("sungai");
   const { features: toponimiFeatures } = useSpatialFeatures("toponimi");
@@ -101,32 +84,28 @@ export default function MapComponent({
   const { features: samplingPointFeatures } = useSpatialFeatures("valid_sampling_point");
   const { features: transectLineFeatures } = useSpatialFeatures("valid_transect_line");
 
-  // --- State untuk menggambar garis ---
+  // ✅ State untuk garis yang sedang digambar
   const [drawnLine, setDrawnLine] = useState<L.LatLng[]>([]);
-  const isDrawing = activeTool === "drawline";
+  const [draftId, setDraftId] = useState<number | null>(null); // Untuk simpan ID dari backend
+
+  const isDrawing = activeTool === "drawline" || activeTool === "drawline-transek";
   const hasLine = drawnLine.length > 0;
 
+  // ✅ Hanya tambahkan titik, tanpa auto-stop
   const addPointToDrawnLine = (latlng: L.LatLng) => {
     setDrawnLine((prev) => [...prev, latlng]);
   };
 
-  const clearDrawnLine = () => {
-    setDrawnLine([]);
-  };
+  const clearDrawnLine = () => setDrawnLine([]);
 
-  // --- SIMPAN GARIS SUNGAI (DRAFT) ---
-  const handleSaveLine = async () => {
+  // ✅ Simpan draft ke backend
+  const handleSaveDraft = async () => {
     if (drawnLine.length < 2) {
       alert("Garis harus memiliki minimal 2 titik.");
       return;
     }
-
-    const lineCoords = drawnLine.map((latlng) => [latlng.lng, latlng.lat] as [number, number]);
-    const geojsonLine = {
-      type: "LineString",
-      coordinates: lineCoords,
-    };
-
+    const lineCoords = drawnLine.map((latlng) => [latlng.lng, latlng.lat]) as [number, number][];
+    const geojsonLine = { type: "LineString", coordinates: lineCoords };
     try {
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
@@ -144,12 +123,14 @@ export default function MapComponent({
           variables: { geom: geojsonLine },
         }),
       });
-
       const data = await response.json();
       if (data.data?.saveRiverLineDraft.success) {
+        const newDraftId = data.data.saveRiverLineDraft.draftId;
+        setDraftId(newDraftId);
         alert(`✅ ${data.data.saveRiverLineDraft.message}`);
+        refreshData();
       } else {
-        throw new Error(data.errors?.[0]?.message || "Gagal simpan draft");
+        throw new Error(data.data?.saveRiverLineDraft.message || "Gagal simpan draft");
       }
     } catch (err: any) {
       console.error("❌ Gagal simpan draft:", err);
@@ -157,12 +138,7 @@ export default function MapComponent({
     }
   };
 
-  const handleStartDrawing = () => {
-    setDrawnLine([]);
-    setActiveTool("drawline");
-  };
-
-  // --- Map Events ---
+  // ✅ Event handler untuk peta
   const MapEvents = () => {
     const map = useMap();
     useMapEvents({
@@ -178,34 +154,36 @@ export default function MapComponent({
             const newPoints = [...routePoints, e.latlng];
             setRoutePoints(newPoints);
             if (mapRef.current) {
-              L.marker(e.latlng, {
-                icon: newPoints.length === 1 ? startIcon : endIcon,
-              })
+              L.marker(e.latlng, { icon: newPoints.length === 1 ? startIcon : endIcon })
                 .addTo(mapRef.current)
                 .bindPopup(newPoints.length === 1 ? "Titik Awal" : "Titik Akhir")
                 .openPopup();
             }
           }
-        } else if (activeTool === "drawline") {
+        } else if (isDrawing) {
           addPointToDrawnLine(e.latlng);
         }
       },
-      contextmenu() {
-        if (activeTool === "drawline" && drawnLine.length > 1) {
-          alert("Garis selesai digambar. Klik 'Simpan Draft' untuk menyimpan.");
+      contextmenu(e) {
+        e.originalEvent.preventDefault(); // Cegah menu browser
+        if (isDrawing) {
+          if (drawnLine.length < 2) {
+            alert("❌ Minimal 2 titik untuk membuat garis.");
+            return;
+          }
+          setActiveTool(null); // Matikan tool
+          // Tidak perlu alert panjang — cukup lanjut ke simpan
         }
       },
     });
     return null;
   };
 
+  // ✅ Tambah toponimi manual
   const handleAddToponimi = async ({ nama, deskripsi }: { nama: string; deskripsi: string }) => {
     if (!formLatLng) return;
     try {
-      const pointGeoJSON = {
-        type: "Point",
-        coordinates: [formLatLng.lng, formLatLng.lat],
-      };
+      const pointGeoJSON = { type: "Point", coordinates: [formLatLng.lng, formLatLng.lat] };
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -228,10 +206,6 @@ export default function MapComponent({
                 meta: $meta
               ) {
                 id
-                layerType
-                name
-                description
-                geometry
               }
             }
           `,
@@ -250,12 +224,11 @@ export default function MapComponent({
         alert("Toponimi berhasil ditambahkan!");
         setShowToponimiForm(false);
         setFormLatLng(null);
+        refreshData();
       } else {
-        const message = result.data?.createSpatialFeature?.message || "Gagal menyimpan";
-        alert(message);
+        alert(result.errors?.[0]?.message || "Gagal menyimpan");
       }
-    } catch (err) {
-      console.error("Gagal simpan toponimi:", err);
+    } catch {
       alert("Tidak dapat terhubung ke server.");
     }
   };
@@ -267,14 +240,14 @@ export default function MapComponent({
 
   return (
     <>
-      <MapContainer center={[-2.98, 104.76]} zoom={13} zoomControl={false} style={{ height: "100%", width: "100%" }} className="z-0">
+      <MapContainer center={[-2.98, 104.76]} zoom={13} zoomControl={false} style={{ height: "100%", width: "100%" }}>
         <TileLayer attribution="&copy; contributors" url={tileUrl} />
         <ZoomControl position="bottomright" />
         <MapEvents />
         <MapRefSetter mapRef={mapRef} />
         {userLocation && <UserLocationMarker location={userLocation} />}
 
-        {/* --- RENDER SEMUA LAYER DINAMIS --- */}
+        {/* Render semua layer */}
         {layerDefinitions?.map((layer) => {
           const isVisible = layerVisibility[layer.id] ?? false;
           let features: Feature[] = [];
@@ -306,8 +279,6 @@ export default function MapComponent({
             case "valid_transect_line":
               features = transectLineFeatures;
               break;
-            default:
-              features = [];
           }
 
           if (!isVisible || features.length === 0) return null;
@@ -317,17 +288,16 @@ export default function MapComponent({
               <GeoJSON
                 key={layer.id}
                 data={{ type: "FeatureCollection", features }}
-                pointToLayer={(point, latlng) => {
-                  return L.circleMarker(latlng, {
+                pointToLayer={(point, latlng) =>
+                  L.circleMarker(latlng, {
                     radius: layer.meta?.radius || 6,
                     color: point.properties?.color || layer.meta?.color || "#16a34a",
                     fillColor: point.properties?.color || layer.meta?.fillColor || "#16a34a",
                     fillOpacity: layer.meta?.fillOpacity || 0.7,
-                  });
-                }}
+                  })
+                }
                 onEachFeature={(feature, layer) => {
-                  const popupContent = `<strong>${feature.properties?.name || feature.properties?.transectId}</strong><br/>${feature.properties?.description || ""}`;
-                  layer.bindPopup(popupContent);
+                  layer.bindPopup(`<strong>${feature.properties?.name || feature.properties?.transectId}</strong>`);
                 }}
               />
             );
@@ -344,32 +314,40 @@ export default function MapComponent({
                 weight: layer.meta?.weight || 2,
               }}
               onEachFeature={(feature, layer) => {
-                const popupContent = `<strong>${feature.properties?.name || feature.properties?.transectId}</strong><br/>${feature.properties?.description || ""}`;
-                layer.bindPopup(popupContent);
+                layer.bindPopup(`<strong>${feature.properties?.name || feature.properties?.transectId}</strong>`);
               }}
             />
           );
         })}
 
-        {/* --- GARIS YANG DIGAMBAR --- */}
+        {/* Tampilkan garis yang sedang digambar */}
         {drawnLine.length > 0 && <Polyline positions={drawnLine} color="red" weight={4} opacity={0.8} />}
       </MapContainer>
 
-      {/* --- MODAL FORM TOPONIMI --- */}
+      {/* Modal tambah toponimi */}
       {showToponimiForm && formLatLng && activeTool !== "simulasi" && (
         <ToponimiFormModal latlng={[formLatLng.lat, formLatLng.lng]} onClose={() => setShowToponimiForm(false)} onSubmit={handleAddToponimi} onCancelMarker={handleCancelMarker} />
       )}
 
-      {/* --- PANEL SIMULASI --- */}
-      {(activeTool === "simulasi" || isDrawing) && (
-        <SimulasiPanel
-          onStartDrawing={handleStartDrawing}
+      {/* ✅ 1. SimulasiPanel: Hanya muncul saat activeTool === "simulasi" */}
+      {activeTool === "simulasi" && <SimulasiPanel onClosePanel={() => setActiveTool(null)} setActiveTool={setActiveTool} setSurveyMode={setSurveyMode} />}
+
+      {/* ✅ 2. LineSurveyPanel: Muncul langsung jika surveyMode === "line" */}
+      {surveyMode === "line" && (
+        <LineSurveyPanel
+          onClose={() => {
+            setSurveyMode(null);
+            setActiveTool(null);
+            setDrawnLine([]);
+            setDraftId(null);
+          }}
+          drawnLine={drawnLine}
           isDrawing={isDrawing}
           hasLine={hasLine}
           onDeleteLine={clearDrawnLine}
-          onClosePanel={() => setActiveTool(null)}
-          onSaveLine={handleSaveLine}
-          drawnLine={drawnLine}
+          onSaveDraft={handleSaveDraft}
+          draftId={draftId}
+          setDraftId={setDraftId}
           setActiveTool={setActiveTool}
         />
       )}
