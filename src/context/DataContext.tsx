@@ -30,8 +30,7 @@ interface DataContextType {
   loadingLayers: boolean;
   errorLayers: string | null;
   refreshLayers: () => void;
-  riverLine: Feature<LineString> | null;
-  setRiverLine: (feature: Feature<LineString> | null) => void;
+  riverLine: Feature<LineString> | null; // ✅ Hanya baca
   echosounderData: EchosounderPoint[];
   layerGroups: any[] | null;
   loadingLayerGroups: boolean;
@@ -56,7 +55,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [errorLayerGroups, setErrorLayerGroups] = useState<string | null>(null);
   const [riverLine, setRiverLine] = useState<Feature<LineString> | null>(null);
 
-  // --- Ambil visibility dari localStorage saat mount ---
+  // --- Ambil visibility dari localStorage ---
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
@@ -70,7 +69,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // --- Simpan ke localStorage setiap layerVisibility berubah ---
+  // --- Simpan ke localStorage saat berubah ---
   useEffect(() => {
     if (typeof window !== "undefined" && Object.keys(layerVisibility).length > 0) {
       try {
@@ -161,12 +160,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- Update riverLine ---
+  // --- Update riverLine dari features ---
   const updateRiverLineFromFeatures = (features: Feature[]) => {
     const riverFeatures = features.filter((f) => f.properties?.layerType === "river_line");
     if (riverFeatures.length > 0) {
-      const sorted = [...riverFeatures].sort((a, b) => new Date(a.properties?.createdAt).getTime() - new Date(b.properties?.createdAt).getTime());
-      setRiverLine(sorted[sorted.length - 1]);
+      const sorted = [...riverFeatures].sort((a, b) => new Date(b.properties?.createdAt).getTime() - new Date(a.properties?.createdAt).getTime());
+      setRiverLine(sorted[0]); // Ambil yang terbaru
     } else {
       setRiverLine(null);
     }
@@ -207,7 +206,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       const result = await response.json();
       if (result.data?.createSpatialFeature) {
-        refreshData();
+        refreshData(); // ✅ Refresh agar muncul di peta
       } else {
         throw new Error(result.errors?.[0]?.message || "Gagal menyimpan feature");
       }
@@ -241,8 +240,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadingLayers,
         errorLayers,
         refreshLayers,
-        riverLine,
-        setRiverLine,
+        riverLine, // ✅ Hanya baca
         echosounderData,
         layerGroups,
         loadingLayerGroups,

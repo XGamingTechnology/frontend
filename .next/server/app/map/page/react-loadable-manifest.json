@@ -18,16 +18,16 @@
       "static/chunks/node_modules_echarts_lib_66b379f3._.js",
       "static/chunks/node_modules_echarts_index_112dea3b.js",
       "static/chunks/node_modules_d050c98d._.js",
-      "static/chunks/node_modules_echarts-for-react_esm_index_c51eae90.js"
+      "static/chunks/node_modules_echarts-for-react_esm_index_20147cd8.js"
     ]
   },
   "[project]/src/components/map/MapComponent.tsx [app-client] (ecmascript, next/dynamic entry)": {
     "id": "[project]/src/components/map/MapComponent.tsx [app-client] (ecmascript, next/dynamic entry)",
     "files": [
-      "static/chunks/node_modules_ec7322b1._.js",
-      "static/chunks/src_components_48f6b286._.js",
+      "static/chunks/node_modules_7c0a685d._.js",
+      "static/chunks/src_components_2d283988._.js",
       "static/chunks/node_modules_leaflet_dist_leaflet_88e19fd3.css",
-      "static/chunks/src_components_map_MapComponent_tsx_c51eae90._.js"
+      "static/chunks/src_components_map_MapComponent_tsx_20147cd8._.js"
     ]
   }
 }

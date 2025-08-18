@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import * as L from "leaflet";
-import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
+import type { Feature, Geometry, GeoJsonProperties } from "geojson";
 
 // --- Tipe Tool: Perjelas makna tiap tool ---
 export type Tool =
@@ -11,13 +11,13 @@ export type Tool =
   | "rute"
   | "echosounder"
   | "simulasi" // Menu utama simulasi
-  | "drawline" // Generic draw line (untuk kompatibilitas)
-  | "drawline-transek" // Khusus untuk transek sungai
-  | "drawpolygon" // Untuk survei area
+  | "drawline" // Generic draw line
+  | "drawline-transek" // Khusus transek sungai
+  | "drawpolygon"
   | "drawpolygon-transek"
   | null;
 
-// --- Tipe Mode Survei (opsional, untuk lacak konteks) ---
+// --- Tipe Mode Survei ---
 type SurveyMode = "line" | "polygon" | null;
 
 interface ToolContextType {
@@ -39,28 +39,9 @@ interface ToolContextType {
   surveyMode: SurveyMode;
   setSurveyMode: (mode: SurveyMode) => void;
 
-  // --- LAYER VISIBILITY ---
-  layers: {
-    toponimi: boolean;
-    sampling: boolean;
-    sungai: boolean;
-    batimetri: boolean;
-  };
-  setLayers: React.Dispatch<
-    React.SetStateAction<{
-      toponimi: boolean;
-      sampling: boolean;
-      sungai: boolean;
-      batimetri: boolean;
-    }>
-  >;
-
-  // --- SELEKSI & DATA ---
+  // --- SELEKSI (untuk seleksi sementara di UI) ---
   selectedFeatures: Feature<Geometry, GeoJsonProperties>[];
   setSelectedFeatures: (features: Feature<Geometry, GeoJsonProperties>[]) => void;
-
-  geojsonData: FeatureCollection | null;
-  setGeojsonData: (data: FeatureCollection | null) => void;
 
   // --- UI ---
   showSidebarRight: boolean;
@@ -74,19 +55,8 @@ export function ToolProvider({ children }: { children: ReactNode }) {
   const [showToponimiForm, setShowToponimiForm] = useState(false);
   const [formLatLng, setFormLatLng] = useState<L.LatLng | null>(null);
   const [routePoints, setRoutePoints] = useState<L.LatLng[]>([]);
-
-  // ✅ Tambah: lacak mode survei saat dalam alur simulasi
   const [surveyMode, setSurveyMode] = useState<SurveyMode>(null);
-
-  const [layers, setLayers] = useState({
-    toponimi: true,
-    sampling: true,
-    sungai: false,
-    batimetri: true,
-  });
-
   const [selectedFeatures, setSelectedFeatures] = useState<Feature<Geometry, GeoJsonProperties>[]>([]);
-  const [geojsonData, setGeojsonData] = useState<FeatureCollection | null>(null);
   const [showSidebarRight, setShowSidebarRight] = useState(false);
 
   return (
@@ -100,14 +70,10 @@ export function ToolProvider({ children }: { children: ReactNode }) {
         setFormLatLng,
         routePoints,
         setRoutePoints,
-        surveyMode, // ✅ Tambahkan
-        setSurveyMode, // ✅ Tambahkan
-        layers,
-        setLayers,
+        surveyMode,
+        setSurveyMode,
         selectedFeatures,
         setSelectedFeatures,
-        geojsonData,
-        setGeojsonData,
         showSidebarRight,
         setShowSidebarRight,
       }}

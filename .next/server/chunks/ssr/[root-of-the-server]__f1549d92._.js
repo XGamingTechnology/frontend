@@ -712,166 +712,254 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$material$2d$react$2d$table$2f$dist$2f$index$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/material-react-table/dist/index.esm.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Box/Box.js [app-ssr] (ecmascript) <export default as Box>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/IconButton/IconButton.js [app-ssr] (ecmascript) <export default as IconButton>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tooltip$2f$Tooltip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Tooltip$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Tooltip/Tooltip.js [app-ssr] (ecmascript) <export default as Tooltip>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$CircularProgress$2f$CircularProgress$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircularProgress$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/CircularProgress/CircularProgress.js [app-ssr] (ecmascript) <export default as CircularProgress>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Refresh$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/Refresh.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-ssr] (ecmascript)");
 "use client";
 ;
 ;
 ;
 ;
 ;
+;
+// --- Utility: Flatten feature ---
+function flattenFeature(feature, layerName) {
+    const { properties = {}, geometry } = feature;
+    return {
+        layer: layerName,
+        geomType: geometry?.type || "Unknown",
+        ...properties
+    };
+}
+// --- GraphQL Fetch Function ---
+async function fetchFreshAttributes(visibleLayerTypes) {
+    try {
+        const response = await fetch("http://localhost:5000/graphql", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                query: `
+          query GetFeaturesByLayerTypes($layerTypes: [String!]!) {
+            featuresByLayerTypes(layerTypes: $layerTypes) {
+              type
+              geometry
+              properties
+            }
+          }
+        `,
+                variables: {
+                    layerTypes: visibleLayerTypes
+                }
+            })
+        });
+        const result = await response.json();
+        return result.data?.featuresByLayerTypes || [];
+    } catch (error) {
+        console.error("❌ Gagal fetch dari server:", error);
+        return [];
+    }
+}
 function AttributeTable() {
-    const [data, setData] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([
-        {
-            id: 1,
-            OBJECTID: 2,
-            NAMOBJ: "Sungai Bengkuluangan",
-            JNSSNG: 0,
-            KLSSNG: 0,
-            FCODE: null,
-            REMARK: "Sungai",
-            SRS_ID: "DA0280",
-            METADATA: null,
-            NAMWS: null
-        },
-        {
-            id: 2,
-            OBJECTID: 3,
-            NAMOBJ: "Sungai Keramasan",
-            JNSSNG: 0,
-            KLSSNG: 0,
-            FCODE: null,
-            REMARK: "Sungai",
-            SRS_ID: "DA0280",
-            METADATA: null,
-            NAMWS: null
+    const { layerDefinitions, layerVisibility, features: allFeatures, refreshData } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useData"])();
+    const [data, setData] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [columns, setColumns] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [isSyncing, setIsSyncing] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    // --- Format header kolom ---
+    const formatHeader = (key)=>key.replace(/([A-Z])/g, " $1") // camelCase ke spasi
+        .replace(/^_+/, "") // hapus underscore di awal
+        .replace("geomType", "Tipe Geometri").replace("layer", "Layer").trim();
+    // --- Ambil data dari context (frontend) ---
+    const getLocalData = ()=>{
+        // Cek null safety
+        if (!allFeatures?.features || !layerDefinitions || !layerVisibility) {
+            setData([]);
+            setColumns([]);
+            return [];
         }
+        // Filter layer yang visible
+        const visibleLayers = layerDefinitions.filter((layer)=>layer && (layerVisibility[layer.id] ?? false));
+        const result = [];
+        const fieldSet = new Set([
+            "layer",
+            "geomType"
+        ]); // minimal kolom
+        visibleLayers.forEach((layer)=>{
+            if (!layer?.layerType) return;
+            // Filter feature berdasarkan layerType
+            const features = allFeatures.features.filter((f)=>f.properties?.layerType === layer.layerType);
+            features.forEach((feature)=>{
+                const flattened = flattenFeature(feature, layer.name || layer.layerType);
+                result.push(flattened);
+                Object.keys(flattened).forEach((key)=>fieldSet.add(key));
+            });
+        });
+        // Generate kolom dinamis
+        const dynamicColumns = Array.from(fieldSet).sort((a, b)=>{
+            if (a === "layer") return -1;
+            if (b === "layer") return 1;
+            return a.localeCompare(b);
+        }).map((key)=>({
+                accessorKey: key,
+                header: formatHeader(key),
+                size: key === "layer" ? 140 : key === "geomType" ? 120 : 160
+            }));
+        setColumns(dynamicColumns);
+        return result;
+    };
+    // --- ✅ Auto-sync saat layerVisibility atau data berubah ---
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        const localData = getLocalData();
+        setData(localData);
+    }, [
+        layerVisibility,
+        allFeatures
     ]);
-    // Definisi kolom
-    const columns = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>[
-            {
-                accessorKey: "id",
-                header: "ID",
-                size: 50
-            },
-            {
-                accessorKey: "OBJECTID",
-                header: "Object ID",
-                size: 100
-            },
-            {
-                accessorKey: "NAMOBJ",
-                header: "Nama Objek",
-                size: 200
-            },
-            {
-                accessorKey: "JNSSNG",
-                header: "Jenis Sungai",
-                size: 100
-            },
-            {
-                accessorKey: "KLSSNG",
-                header: "Kelas Sungai",
-                size: 100
-            },
-            {
-                accessorKey: "FCODE",
-                header: "F Code",
-                size: 100
-            },
-            {
-                accessorKey: "REMARK",
-                header: "Remark",
-                size: 100
-            },
-            {
-                accessorKey: "SRS_ID",
-                header: "SRS ID",
-                size: 100
-            },
-            {
-                accessorKey: "METADATA",
-                header: "Metadata",
-                size: 100
-            },
-            {
-                accessorKey: "NAMWS",
-                header: "Nama WS",
-                size: 100
-            }
-        ], []);
+    // --- Handler: Refresh dari server (opsional) ---
+    const handleForceRefresh = async ()=>{
+        setIsSyncing(true);
+        // Ambil layerType dari layer yang visible
+        const visibleLayerTypes = layerDefinitions?.filter((layer)=>layer && (layerVisibility[layer.id] ?? false)).map((layer)=>layer.layerType).filter(Boolean);
+        if (!visibleLayerTypes?.length) {
+            setIsSyncing(false);
+            return;
+        }
+        try {
+            const freshFeatures = await fetchFreshAttributes(visibleLayerTypes);
+            if (freshFeatures.length === 0) return;
+            const freshData = freshFeatures.map((f)=>flattenFeature(f, layerDefinitions.find((l)=>l?.layerType === f.properties?.layerType)?.name || f.properties?.layerType || "Unknown"));
+            setData(freshData);
+        } catch (err) {
+            console.warn("Gagal fetch dari server, tetap gunakan data lokal", err);
+        } finally{
+            setIsSyncing(false);
+        }
+    };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "bg-white rounded-lg shadow",
-        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$material$2d$react$2d$table$2f$dist$2f$index$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MaterialReactTable"], {
-            columns: columns,
-            data: data,
-            enableColumnResizing: true,
-            enableColumnOrdering: true,
-            enablePinning: true,
-            enableRowNumbers: true,
-            enableRowActions: true,
-            enablePagination: true,
-            enableGlobalFilter: true,
-            enableColumnFilters: true,
-            initialState: {
-                density: "compact",
-                pagination: {
-                    pageSize: 10,
-                    pageIndex: 0
-                }
-            },
-            muiTableContainerProps: {
-                sx: {
-                    maxHeight: "400px"
-                }
-            },
-            renderTopToolbarCustomActions: ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+        className: "bg-white rounded-lg shadow overflow-hidden",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$material$2d$react$2d$table$2f$dist$2f$index$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MaterialReactTable"], {
+                columns: columns,
+                data: data,
+                enableColumnResizing: true,
+                enableColumnOrdering: true,
+                enablePinning: true,
+                enableRowNumbers: true,
+                enablePagination: true,
+                enableGlobalFilter: true,
+                enableColumnFilters: true,
+                initialState: {
+                    density: "compact",
+                    pagination: {
+                        pageSize: 10,
+                        pageIndex: 0
+                    }
+                },
+                muiTableContainerProps: {
                     sx: {
-                        display: "flex",
-                        gap: "1rem",
-                        alignItems: "center"
-                    },
-                    children: [
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
-                            className: "text-lg font-semibold",
-                            children: "📋 Attribute Table"
-                        }, void 0, false, {
-                            fileName: "[project]/src/components/BottomPanel.tsx",
-                            lineNumber: 54,
-                            columnNumber: 13
-                        }, void 0),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__["IconButton"], {
-                            onClick: ()=>console.log("Refresh data"),
-                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Refresh$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                        maxHeight: "400px"
+                    }
+                },
+                renderTopToolbarCustomActions: ()=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                        sx: {
+                            display: "flex",
+                            gap: "1rem",
+                            alignItems: "center"
+                        },
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
+                                className: "text-lg font-semibold",
+                                children: "📋 Attribute Table"
+                            }, void 0, false, {
                                 fileName: "[project]/src/components/BottomPanel.tsx",
-                                lineNumber: 56,
-                                columnNumber: 15
+                                lineNumber: 164,
+                                columnNumber: 13
+                            }, void 0),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tooltip$2f$Tooltip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Tooltip$3e$__["Tooltip"], {
+                                title: "Sinkron ulang dari server",
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__["IconButton"], {
+                                        onClick: handleForceRefresh,
+                                        disabled: isSyncing,
+                                        size: "small",
+                                        color: "primary",
+                                        children: isSyncing ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$CircularProgress$2f$CircularProgress$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircularProgress$3e$__["CircularProgress"], {
+                                            size: 20
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/BottomPanel.tsx",
+                                            lineNumber: 170,
+                                            columnNumber: 32
+                                        }, void 0) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Refresh$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                                            fileName: "[project]/src/components/BottomPanel.tsx",
+                                            lineNumber: 170,
+                                            columnNumber: 65
+                                        }, void 0)
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/BottomPanel.tsx",
+                                        lineNumber: 169,
+                                        columnNumber: 17
+                                    }, void 0)
+                                }, void 0, false, {
+                                    fileName: "[project]/src/components/BottomPanel.tsx",
+                                    lineNumber: 168,
+                                    columnNumber: 15
+                                }, void 0)
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/BottomPanel.tsx",
+                                lineNumber: 167,
+                                columnNumber: 13
+                            }, void 0),
+                            isSyncing && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                sx: {
+                                    fontSize: "0.875rem",
+                                    color: "text.secondary"
+                                },
+                                children: "Memuat data terbaru..."
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/BottomPanel.tsx",
+                                lineNumber: 175,
+                                columnNumber: 27
                             }, void 0)
-                        }, void 0, false, {
-                            fileName: "[project]/src/components/BottomPanel.tsx",
-                            lineNumber: 55,
-                            columnNumber: 13
-                        }, void 0)
-                    ]
-                }, void 0, true, {
-                    fileName: "[project]/src/components/BottomPanel.tsx",
-                    lineNumber: 53,
-                    columnNumber: 11
-                }, void 0),
-            muiTablePaperProps: {
-                elevation: 0,
-                sx: {
-                    borderRadius: "8px",
-                    border: "1px solid #e0e0e0"
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/src/components/BottomPanel.tsx",
+                        lineNumber: 163,
+                        columnNumber: 11
+                    }, void 0),
+                muiTablePaperProps: {
+                    elevation: 0,
+                    sx: {
+                        borderRadius: "8px",
+                        border: "1px solid #e0e0e0"
+                    }
+                },
+                state: {
+                    showProgressBars: isSyncing
                 }
-            }
-        }, void 0, false, {
-            fileName: "[project]/src/components/BottomPanel.tsx",
-            lineNumber: 34,
-            columnNumber: 7
-        }, this)
-    }, void 0, false, {
+            }, void 0, false, {
+                fileName: "[project]/src/components/BottomPanel.tsx",
+                lineNumber: 145,
+                columnNumber: 7
+            }, this),
+            data.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                sx: {
+                    p: 2,
+                    color: "text.secondary",
+                    textAlign: "center",
+                    fontSize: "0.9rem"
+                },
+                children: "📭 Tidak ada layer yang ditampilkan. Aktifkan layer dari peta untuk melihat atribut."
+            }, void 0, false, {
+                fileName: "[project]/src/components/BottomPanel.tsx",
+                lineNumber: 191,
+                columnNumber: 29
+            }, this)
+        ]
+    }, void 0, true, {
         fileName: "[project]/src/components/BottomPanel.tsx",
-        lineNumber: 33,
+        lineNumber: 144,
         columnNumber: 5
     }, this);
 }

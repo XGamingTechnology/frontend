@@ -1,4 +1,14 @@
 // src/components/panels/SimulasiPanel.tsx
+"use client";
+import { useState } from "react";
+import { useTool } from "@/context/ToolContext";
+
+interface SimulasiPanelProps {
+  onClosePanel: () => void;
+  setActiveTool: (tool: "simulasi" | "drawline" | "drawpolygon" | null) => void;
+  setSurveyMode: (mode: "line" | "polygon" | null) => void;
+}
+
 export default function SimulasiPanel({ onClosePanel, setActiveTool, setSurveyMode }: SimulasiPanelProps) {
   return (
     <div className="absolute bottom-4 right-4 z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200">
@@ -9,14 +19,14 @@ export default function SimulasiPanel({ onClosePanel, setActiveTool, setSurveyMo
         </button>
       </div>
 
-      {/* STEP 1: Pilih Mode */}
+      {/* === STEP 1: Pilih Alur === */}
       <div className="space-y-3">
         <button
           onClick={() => {
             setSurveyMode("line");
-            setActiveTool("drawline-transek"); // Langsung mulai gambar
+            setActiveTool("drawline"); // Gunakan "drawline" konsisten
           }}
-          className="w-full p-4 text-left border border-blue-200 rounded-lg hover:bg-blue-50 transition"
+          className="w-full p-4 text-left border border-blue-200 rounded-lg hover:bg-blue-50 transition text-left"
         >
           <div className="font-semibold text-blue-700">🌊 Transek dari Garis Sungai</div>
           <div className="text-xs text-gray-600">Gambar garis → transek tegak lurus</div>
@@ -25,7 +35,7 @@ export default function SimulasiPanel({ onClosePanel, setActiveTool, setSurveyMo
         <button
           onClick={() => {
             setSurveyMode("polygon");
-            setActiveTool("drawpolygon-transek"); // Langsung mulai gambar
+            setActiveTool("drawpolygon"); // Konsisten dengan ToolContext
           }}
           className="w-full p-4 text-left border border-green-200 rounded-lg hover:bg-green-50 transition"
         >

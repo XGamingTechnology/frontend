@@ -77,8 +77,6 @@
     --color-red-400: oklch(70.4% .191 22.216);
     --color-red-500: oklch(63.7% .237 25.331);
     --color-red-600: oklch(57.7% .245 27.325);
-    --color-amber-500: oklch(76.9% .188 70.08);
-    --color-amber-600: oklch(66.6% .179 58.318);
     --color-yellow-500: oklch(79.5% .184 86.047);
     --color-yellow-600: oklch(68.1% .162 75.834);
     --color-green-50: oklch(98.2% .018 155.826);
@@ -170,7 +168,6 @@
     --radius-xl: .75rem;
     --radius-2xl: 1rem;
     --drop-shadow-xl: 0 9px 7px #0000001a;
-    --animate-spin: spin 1s linear infinite;
     --animate-ping: ping 1s cubic-bezier(0, 0, .2, 1) infinite;
     --animate-pulse: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
     --blur-sm: 8px;
@@ -542,10 +539,6 @@
     margin-bottom: calc(var(--spacing) * 24);
   }
 
-  .-ml-1 {
-    margin-left: calc(var(--spacing) * -1);
-  }
-
   .block {
     display: block;
   }
@@ -717,10 +710,6 @@
 
   .animate-pulse {
     animation: var(--animate-pulse);
-  }
-
-  .animate-spin {
-    animation: var(--animate-spin);
   }
 
   .cursor-col-resize {
@@ -959,10 +948,6 @@
     border-color: var(--color-slate-700);
   }
 
-  .bg-amber-500 {
-    background-color: var(--color-amber-500);
-  }
-
   .bg-black {
     background-color: var(--color-black);
   }
@@ -1167,10 +1152,6 @@
 
   .p-1 {
     padding: calc(var(--spacing) * 1);
-  }
-
-  .p-1\.5 {
-    padding: calc(var(--spacing) * 1.5);
   }
 
   .p-2 {
@@ -1509,10 +1490,6 @@
     accent-color: var(--color-cyan-600);
   }
 
-  .opacity-25 {
-    opacity: .25;
-  }
-
   .opacity-75 {
     opacity: .75;
   }
@@ -1696,12 +1673,6 @@
   }
 
   @media (hover: hover) {
-    .hover\:bg-amber-600:hover {
-      background-color: var(--color-amber-600);
-    }
-  }
-
-  @media (hover: hover) {
     .hover\:bg-blue-50:hover {
       background-color: var(--color-blue-50);
     }
@@ -1710,12 +1681,6 @@
   @media (hover: hover) {
     .hover\:bg-blue-500:hover {
       background-color: var(--color-blue-500);
-    }
-  }
-
-  @media (hover: hover) {
-    .hover\:bg-blue-600:hover {
-      background-color: var(--color-blue-600);
     }
   }
 
@@ -2433,12 +2398,6 @@ html, body, #__next {
   syntax: "*";
   inherits: false;
   initial-value: 1;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 @keyframes pulse {
