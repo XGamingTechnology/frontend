@@ -30,13 +30,14 @@ interface DataContextType {
   loadingLayers: boolean;
   errorLayers: string | null;
   refreshLayers: () => void;
-  riverLine: Feature<LineString> | null; // ✅ Hanya baca
+  riverLine: Feature<LineString> | null;
   echosounderData: EchosounderPoint[];
   layerGroups: any[] | null;
   loadingLayerGroups: boolean;
   errorLayerGroups: string | null;
   refreshLayerGroups: () => void;
   addFeature: (feature: Feature) => Promise<void>;
+  exportFeatures: (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string }) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -55,7 +56,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [errorLayerGroups, setErrorLayerGroups] = useState<string | null>(null);
   const [riverLine, setRiverLine] = useState<Feature<LineString> | null>(null);
 
-  // --- Ambil visibility dari localStorage ---
+  // --- Load visibility dari localStorage ---
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
@@ -63,30 +64,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (saved) {
           setLayerVisibilityState(JSON.parse(saved));
         }
-      } catch (error) {
-        console.warn("Gagal baca layerVisibility:", error);
+      } catch (err) {
+        console.warn("Gagal baca layerVisibility:", err);
       }
     }
   }, []);
 
-  // --- Simpan ke localStorage saat berubah ---
+  // --- Simpan visibility ke localStorage ---
   useEffect(() => {
     if (typeof window !== "undefined" && Object.keys(layerVisibility).length > 0) {
       try {
         localStorage.setItem("layerVisibility", JSON.stringify(layerVisibility));
-      } catch (error) {
-        console.warn("Gagal simpan layerVisibility:", error);
+      } catch (err) {
+        console.warn("Gagal simpan layerVisibility:", err);
       }
     }
   }, [layerVisibility]);
 
-  // --- Load data pertama kali ---
+  // --- Load semua data ---
   useEffect(() => {
     loadData();
     loadLayers();
+    loadLayerGroups();
   }, []);
 
-  // --- Ambil semua spatial features ---
+  // --- 1. Load Spatial Features ---
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -95,9 +97,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: `{spatialFeatures {id layerType name description geometry source meta createdAt}}`,
+          query: `
+            {
+              spatialFeatures {
+                id
+                layerType
+                name
+                description
+                geometry
+                source
+                meta
+                createdAt
+              }
+            }
+          `,
         }),
       });
+
       const result = await response.json();
       if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(", "));
 
@@ -106,10 +122,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         features: result.data.spatialFeatures.map((f: any) => ({
           type: "Feature",
           id: f.id,
-          properties: { ...f.meta, id: f.id, name: f.name, description: f.description, layerType: f.layerType, source: f.source, createdAt: f.createdAt },
+          properties: {
+            id: f.id,
+            name: f.name,
+            description: f.description,
+            layerType: f.layerType,
+            source: f.source,
+            createdAt: f.createdAt,
+            ...f.meta,
+          },
           geometry: f.geometry,
         })),
       };
+
       setFeatures(geojson);
       updateRiverLineFromFeatures(geojson.features);
     } catch (err: any) {
@@ -120,7 +145,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- Ambil definisi layer ---
+  // --- 2. Load Layer Definitions ---
   const loadLayers = async () => {
     setLoadingLayers(true);
     setErrorLayers(null);
@@ -132,23 +157,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           query: `{ layerDefinitions { id name description layerType source meta } }`,
         }),
       });
+
       const result = await response.json();
       if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(", "));
 
       const layers = result.data.layerDefinitions;
 
-      const extendedLayers = [
+      // Tambah layer proses otomatis
+      const extendedLayers: LayerDefinition[] = [
         ...layers,
-        { id: "valid_transect_line", name: "Valid Transect Line", description: "Transect yang valid setelah clipping", layerType: "valid_transect_line", source: "process_survey", meta: { color: "#ff0000", weight: 3 } },
-        { id: "valid_sampling_point", name: "Sampling Point", description: "Titik sampling dengan kedalaman", layerType: "valid_sampling_point", source: "process_survey", meta: { fillColor: "#00ff00", radius: 6 } },
+        {
+          id: "valid_transect_line",
+          name: "Valid Transect Line",
+          description: "Transect yang valid setelah clipping",
+          layerType: "valid_transect_line",
+          source: "process_survey",
+          meta: { color: "#ff0000", weight: 3 },
+        },
+        {
+          id: "valid_sampling_point",
+          name: "Sampling Point",
+          description: "Titik sampling dengan kedalaman",
+          layerType: "valid_sampling_point",
+          source: "process_survey",
+          meta: { fillColor: "#00ff00", radius: 6, fillOpacity: 0.7 },
+        },
       ];
 
       setLayerDefinitions(extendedLayers);
 
+      // Inisialisasi visibility
       setLayerVisibilityState((prev) => {
         const updated = { ...prev };
         extendedLayers.forEach((layer) => {
-          if (updated[layer.id] === undefined) updated[layer.id] = true;
+          if (updated[layer.id] === undefined) {
+            updated[layer.id] = true; // default tampil
+          }
         });
         return updated;
       });
@@ -160,18 +204,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // --- 3. Load Layer Groups (dummy untuk sekarang) ---
+  const loadLayerGroups = () => {
+    setLoadingLayerGroups(true);
+    setTimeout(() => {
+      setLayerGroups([]);
+      setLoadingLayerGroups(false);
+    }, 500);
+  };
+
   // --- Update riverLine dari features ---
   const updateRiverLineFromFeatures = (features: Feature[]) => {
     const riverFeatures = features.filter((f) => f.properties?.layerType === "river_line");
     if (riverFeatures.length > 0) {
-      const sorted = [...riverFeatures].sort((a, b) => new Date(b.properties?.createdAt).getTime() - new Date(a.properties?.createdAt).getTime());
-      setRiverLine(sorted[0]); // Ambil yang terbaru
+      const sorted = riverFeatures.sort((a, b) => new Date(b.properties?.createdAt).getTime() - new Date(a.properties?.createdAt).getTime());
+      setRiverLine(sorted[0] as Feature<LineString>);
     } else {
       setRiverLine(null);
     }
   };
 
-  // --- Ubah visibility layer ---
+  // --- Set visibility ---
   const handleSetLayerVisibility = (id: string, isVisible: boolean) => {
     setLayerVisibilityState((prev) => ({ ...prev, [id]: isVisible }));
   };
@@ -184,13 +237,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: `
-            mutation CreateSpatialFeature($layerType: String!, $name: String, $description: String, $geometry: GeometryInput!, $source: String, $meta: MetadataInput) {
-              createSpatialFeature(layerType: $layerType, name: $name, description: $description, geometry: $geometry, source: $source, meta: $meta) {
+            mutation CreateSpatialFeature(
+              $layerType: String!
+              $name: String
+              $description: String
+              $geometry: GeometryInput!
+              $source: String
+              $meta: MetadataInput
+            ) {
+              createSpatialFeature(
+                layerType: $layerType
+                name: $name
+                description: $description
+                geometry: $geometry
+                source: $source
+                meta: $meta
+              ) {
                 id
-                layerType
-                name
-                description
-                geometry
               }
             }
           `,
@@ -204,9 +267,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         }),
       });
+
       const result = await response.json();
       if (result.data?.createSpatialFeature) {
-        refreshData(); // ✅ Refresh agar muncul di peta
+        await refreshData(); // ✅ Refresh full dari server
       } else {
         throw new Error(result.errors?.[0]?.message || "Gagal menyimpan feature");
       }
@@ -216,7 +280,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- Refresh fungsi ---
+  // --- Refresh functions ---
   const refreshData = () => loadData();
   const refreshLayers = () => loadLayers();
   const refreshLayerGroups = () => {
@@ -225,6 +289,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLayerGroups([]);
       setLoadingLayerGroups(false);
     }, 500);
+  };
+
+  // --- ✅ EXPORT FUNCTION ---
+  const exportFeatures = (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string }) => {
+    const { layerType, source, format = "geojson", filename = "export" } = options || {};
+
+    if (!features?.features) {
+      alert("Belum ada data untuk diekspor.");
+      return;
+    }
+
+    let filtered = [...features.features];
+
+    if (layerType) {
+      filtered = filtered.filter((f) => f.properties?.layerType === layerType);
+    }
+    if (source) {
+      filtered = filtered.filter((f) => f.properties?.source === source);
+    }
+
+    if (filtered.length === 0) {
+      alert("Tidak ada data yang sesuai kriteria.");
+      return;
+    }
+
+    if (format === "geojson") {
+      const geojson = {
+        type: "FeatureCollection",
+        features: filtered,
+      };
+      const jsonStr = JSON.stringify(geojson, null, 2);
+      downloadFile(jsonStr, `${filename}.geojson`, "application/json");
+    }
+
+    if (format === "csv") {
+      const headers = ["ID", "LayerType", "Source", "Latitude", "Longitude", "Properties"];
+      const rows = filtered.map((f) => {
+        const [lng, lat] = f.geometry?.type === "Point" ? f.geometry.coordinates : ["-", "-"];
+        const props = JSON.stringify(f.properties);
+        return [f.id, f.properties?.layerType, f.properties?.source, lat, lng, props].join(",");
+      });
+      const csv = [headers.join(","), ...rows].join("\n");
+      downloadFile(csv, `${filename}.csv`, "text/csv");
+    }
+  };
+
+  // --- Helper: Download file ---
+  const downloadFile = (data: string, filename: string, mime: string) => {
+    const blob = new Blob([data], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -240,13 +359,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadingLayers,
         errorLayers,
         refreshLayers,
-        riverLine, // ✅ Hanya baca
+        riverLine,
         echosounderData,
         layerGroups,
         loadingLayerGroups,
         errorLayerGroups,
         refreshLayerGroups,
         addFeature,
+        exportFeatures, // ✅ Tambahkan ke context
       }}
     >
       {children}

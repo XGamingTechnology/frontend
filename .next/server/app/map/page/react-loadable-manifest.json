@@ -24,8 +24,8 @@
   "[project]/src/components/map/MapComponent.tsx [app-client] (ecmascript, next/dynamic entry)": {
     "id": "[project]/src/components/map/MapComponent.tsx [app-client] (ecmascript, next/dynamic entry)",
     "files": [
-      "static/chunks/node_modules_7c0a685d._.js",
       "static/chunks/src_components_2d283988._.js",
+      "static/chunks/node_modules_7c0a685d._.js",
       "static/chunks/node_modules_leaflet_dist_leaflet_88e19fd3.css",
       "static/chunks/src_components_map_MapComponent_tsx_20147cd8._.js"
     ]
