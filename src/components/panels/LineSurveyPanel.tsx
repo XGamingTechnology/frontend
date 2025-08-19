@@ -21,7 +21,7 @@ interface LineSurveyPanelProps {
 }
 
 export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine, onDeleteLine, onSaveDraft, draftId, setDraftId, setActiveTool }: LineSurveyPanelProps) {
-  const { refreshData, features, loading } = useData();
+  const { refreshData, features } = useData();
   const { surveyMode } = useTool();
 
   const [spasi, setSpasi] = useState(100);
@@ -30,6 +30,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   const [isProcessing, setIsProcessing] = useState(false);
   const [areaOptions, setAreaOptions] = useState<Array<{ id: number; name: string }>>([]);
   const [isDataReady, setIsDataReady] = useState(false);
+  const [surveyId, setSurveyId] = useState<string | null>(null);
 
   // Debug: info jumlah titik
   const [debugInfo, setDebugInfo] = useState<{
@@ -46,6 +47,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     if (!draftId) {
       setIsDataReady(false);
       setDebugInfo(null);
+      setSurveyId(null);
     }
   }, [draftId]);
 
@@ -85,24 +87,13 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
 
   const calculateLength = (points: L.LatLng[]) => points.reduce((d, p, i, arr) => (i ? d + arr[i - 1].distanceTo(p) : d), 0);
 
-  // --- CARI SAMPLING POINT DENGAN MULTIPLE STRATEGY ---
-  const findSamplingPointsByDraftId = (id: number): Feature[] => {
-    if (!features?.features) return [];
-
-    return features.features.filter((f: Feature) => {
-      const props = f.properties || {};
-      if (props.layerType !== "valid_sampling_point") return false;
-
-      return props.river_line_draft_id == id || props.riverLineDraftId == id || props.draft_id == id || props.river_line_id == id || props.riverLineId == id || (props.survey_id && props.survey_id.includes(id.toString()));
-    });
-  };
-
   // --- PROSES SURVEY ---
   const handleProcessSurvey = async () => {
     if (!draftId) return alert("Simpan draft garis terlebih dahulu.");
     if (!selectedAreaId) return alert("Pilih area pemotong.");
 
-    const surveyId = `SURVEY_${Date.now()}`;
+    const id = `SURVEY_${Math.floor(Date.now() / 1000)}`;
+    setSurveyId(id);
     setIsProcessing(true);
     setIsDataReady(false);
 
@@ -131,16 +122,25 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
               }
             }
           `,
-          variables: { surveyId, draftId, areaId: selectedAreaId, spasi, panjang },
+          variables: { surveyId: id, draftId, areaId: selectedAreaId, spasi, panjang },
         }),
       });
 
       const data = await res.json();
       if (data.data?.generateSurvey.success) {
-        alert("✅ Proses survey selesai. Menunggu data...");
+        alert("✅ Proses survey selesai. Menampilkan hasil...");
+        await refreshData(); // ⬅️ Refresh data → otomatis munculkan transek & titik
+        setIsDataReady(true);
 
-        // Tunggu refresh dan polling
-        await waitForData(draftId, 5);
+        // Update debug info
+        const validSampling = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point").length;
+        const matching = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point" && f.properties?.survey_id === id).length;
+
+        setDebugInfo({
+          totalFeatures: features?.features?.length || 0,
+          validSamplingCount: validSampling || 0,
+          matchingCount: matching || 0,
+        });
       } else {
         throw new Error(data.data?.generateSurvey.message || "Proses gagal");
       }
@@ -152,94 +152,96 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     }
   };
 
-  // --- POLLING OTOMATIS TUNGGU DATA MUNCUL ---
-  const waitForData = async (id: number, maxRetries = 5) => {
-    for (let i = 0; i < maxRetries; i++) {
-      await refreshData();
-      const points = findSamplingPointsByDraftId(id);
-      if (points.length > 0) {
-        setIsDataReady(true);
-        setDebugInfo({
-          totalFeatures: features?.features?.length || 0,
-          validSamplingCount: points.length,
-          matchingCount: points.length,
-        });
-        alert("✅ Data siap diekspor!");
-        return;
-      }
-      if (i < maxRetries - 1) await new Promise((r) => setTimeout(r, 1000)); // tunggu 1 detik
-    }
-    alert("⚠️ Titik sampling belum muncul. Coba export nanti atau refresh halaman.");
-  };
-
-  // --- EXPORT SAMPLING POINTS ---
+  // --- EXPORT SAMPLING POINTS: Langsung dari DB ---
   const handleExport = async (format: "csv" | "geojson") => {
-    if (!draftId) {
-      alert("Belum ada draft aktif. Tidak bisa export.");
+    if (!surveyId) {
+      alert("Belum ada proses survey.");
       return;
     }
 
     if (!isDataReady) {
-      alert("Data belum siap untuk diekspor. Tunggu setelah proses survey selesai.");
+      alert("Data belum siap untuk diekspor.");
       return;
     }
 
-    // Refresh sekali lagi untuk jaga-jaga
-    await refreshData();
-    const samplingPoints = findSamplingPointsByDraftId(draftId);
-
-    if (samplingPoints.length === 0) {
-      alert("⚠️ Data belum tersedia. Coba lagi dalam beberapa detik atau refresh halaman.");
-      return;
-    }
-
-    if (format === "csv") {
-      const headers = ["ID", "Transect ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)", "River Line Draft ID"];
-      const rows = samplingPoints.map((f: Feature) => {
-        const props = f.properties || {};
-        const [lng, lat] = f.geometry?.type === "Point" ? f.geometry.coordinates : ["-", "-"];
-        return [
-          props.id || "-",
-          props.transect_id || "-",
-          props.survey_id?.slice(-8) || "-",
-          lat?.toFixed(6) || "-",
-          lng?.toFixed(6) || "-",
-          (props.kedalaman ?? props.depth_value ?? "-").toString(),
-          (props.distance_m || props.distance_from_start || "-").toString(),
-          props.river_line_draft_id || props.riverLineDraftId || "-",
-        ];
+    try {
+      const res = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `
+            query GetSamplingPoints($surveyId: String!) {
+              samplingPointsBySurveyId(surveyId: $surveyId) {
+                id
+                layerType
+                name
+                description
+                geometry
+                meta
+              }
+            }
+          `,
+          variables: { surveyId },
+        }),
       });
-      const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-      downloadFile(csvContent, `sampling_points_draft_${draftId}.csv`, "text/csv");
-    }
 
-    if (format === "geojson") {
-      const geojson = {
-        type: "FeatureCollection",
-        features: samplingPoints,
-      };
-      const jsonStr = JSON.stringify(geojson, null, 2);
-      downloadFile(jsonStr, `sampling_points_draft_${draftId}.geojson`, "application/json");
+      const data = await res.json();
+      const points = data.data?.samplingPointsBySurveyId;
+
+      if (!points || points.length === 0) {
+        alert("⚠️ Tidak ada titik untuk diekspor.");
+        return;
+      }
+
+      if (format === "geojson") {
+        const geojson = {
+          type: "FeatureCollection",
+          features: points.map((p: any) => ({
+            type: "Feature",
+            id: p.id,
+            properties: { ...p, ...p.meta },
+            geometry: p.geometry,
+          })),
+        };
+        const jsonStr = JSON.stringify(geojson, null, 2);
+        downloadFile(jsonStr, `${surveyId}.geojson`, "application/json");
+      }
+
+      if (format === "csv") {
+        const headers = ["ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)"];
+        const rows = points.map((p: any) => {
+          const [lng, lat] = p.geometry?.coordinates || ["-", "-"];
+          return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
+        });
+        const csv = [headers.join(","), ...rows].join("\n");
+        downloadFile(csv, `${surveyId}.csv`, "text/csv");
+      }
+    } catch (err) {
+      alert("Gagal ambil data untuk export.");
     }
   };
 
-  // ✅ ✅ ✅ FUNGSI DOWNLOADFILE YANG BENAR ✅ ✅ ✅
-  const downloadFile = (string, filename: string, mime: string) => {
-    try {
-      // ✅ GUNAKAN 'content' — NAMA PARAMETER YANG BENAR
-      const blob = new Blob([data], { type: mime });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Gagal download file:", err);
-      alert("Gagal mengekspor file. Coba refresh halaman.");
+  // --- Fungsi Download File Lokal ---
+  const downloadFile = (content: string, filename: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // --- RESET ALUR: Mulai dari awal ---
+  const resetDraft = () => {
+    setDraftId(null);
+    setIsDataReady(false);
+    setDebugInfo(null);
+    setSurveyId(null);
+    setSpasi(100);
+    setPanjang(300);
+    if (areaOptions.length > 0) {
+      setSelectedAreaId(areaOptions[0].id);
     }
   };
 
@@ -345,10 +347,22 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
                   </button>
                 </div>
               </div>
+
+              {/* Tombol Gambar Ulang */}
+              <button onClick={resetDraft} className="w-full mt-3 text-sm py-1.5 px-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded">
+                🔄 Gambar Ulang
+              </button>
             </>
           )}
 
-          <button onClick={onDeleteLine} className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded text-sm mt-4">
+          {/* Hapus Semua (reset state) */}
+          <button
+            onClick={() => {
+              onDeleteLine();
+              resetDraft();
+            }}
+            className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded text-sm mt-4"
+          >
             🗑️ Hapus Semua
           </button>
         </div>

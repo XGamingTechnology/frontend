@@ -37,7 +37,7 @@ interface DataContextType {
   errorLayerGroups: string | null;
   refreshLayerGroups: () => void;
   addFeature: (feature: Feature) => Promise<void>;
-  exportFeatures: (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string }) => void;
+  exportFeatures: (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string; filter?: (feature: Feature) => boolean }) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -191,7 +191,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updated = { ...prev };
         extendedLayers.forEach((layer) => {
           if (updated[layer.id] === undefined) {
-            updated[layer.id] = true; // default tampil
+            updated[layer.id] = true;
           }
         });
         return updated;
@@ -204,7 +204,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- 3. Load Layer Groups (dummy untuk sekarang) ---
+  // --- 3. Load Layer Groups (dummy) ---
   const loadLayerGroups = () => {
     setLoadingLayerGroups(true);
     setTimeout(() => {
@@ -270,7 +270,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const result = await response.json();
       if (result.data?.createSpatialFeature) {
-        await refreshData(); // ✅ Refresh full dari server
+        await refreshData();
       } else {
         throw new Error(result.errors?.[0]?.message || "Gagal menyimpan feature");
       }
@@ -291,9 +291,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 500);
   };
 
-  // --- ✅ EXPORT FUNCTION ---
-  const exportFeatures = (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string }) => {
-    const { layerType, source, format = "geojson", filename = "export" } = options || {};
+  // --- ✅ EXPORT FUNCTION (TETAP ADA UNTUK KOMPATIBILITAS) ---
+  const exportFeatures = (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string; filter?: (feature: Feature) => boolean }) => {
+    const { layerType, source, format = "geojson", filename = "export", filter } = options || {};
 
     if (!features?.features) {
       alert("Belum ada data untuk diekspor.");
@@ -308,6 +308,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (source) {
       filtered = filtered.filter((f) => f.properties?.source === source);
     }
+    if (filter) {
+      filtered = filtered.filter(filter);
+    }
 
     if (filtered.length === 0) {
       alert("Tidak ada data yang sesuai kriteria.");
@@ -315,35 +318,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (format === "geojson") {
-      const geojson = {
-        type: "FeatureCollection",
-        features: filtered,
-      };
+      const geojson = { type: "FeatureCollection", features: filtered };
       const jsonStr = JSON.stringify(geojson, null, 2);
       downloadFile(jsonStr, `${filename}.geojson`, "application/json");
     }
 
     if (format === "csv") {
-      const headers = ["ID", "LayerType", "Source", "Latitude", "Longitude", "Properties"];
+      const headers = ["ID", "Transect ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak", "Draft ID"];
       const rows = filtered.map((f) => {
+        const props = f.properties || {};
         const [lng, lat] = f.geometry?.type === "Point" ? f.geometry.coordinates : ["-", "-"];
-        const props = JSON.stringify(f.properties);
-        return [f.id, f.properties?.layerType, f.properties?.source, lat, lng, props].join(",");
+        return [
+          f.id || "-",
+          props.transect_id || "-",
+          props.survey_id?.slice(-8) || "-",
+          lat?.toFixed(6) || "-",
+          lng?.toFixed(6) || "-",
+          (props.kedalaman ?? props.depth_value ?? "-").toString(),
+          (props.distance_m || "-").toString(),
+          props.river_line_draft_id || "-",
+        ];
       });
-      const csv = [headers.join(","), ...rows].join("\n");
+      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
       downloadFile(csv, `${filename}.csv`, "text/csv");
     }
   };
 
   // --- Helper: Download file ---
   const downloadFile = (data: string, filename: string, mime: string) => {
-    const blob = new Blob([data], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = new Blob([data], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Gagal download file:", err);
+      alert("Gagal mengekspor file.");
+    }
   };
 
   return (
@@ -366,7 +380,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorLayerGroups,
         refreshLayerGroups,
         addFeature,
-        exportFeatures, // ✅ Tambahkan ke context
+        exportFeatures,
       }}
     >
       {children}
