@@ -285,18 +285,18 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
               <p className="text-sm text-gray-600 mb-3 italic">Langkah 2: Proses Survey</p>
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div>
-                  <label className="block text-xs font-bold mb-1">Spasi (m)</label>
-                  <input type="number" value={spasi} onChange={(e) => setSpasi(Math.max(1, parseInt(e.target.value) || 1))} className="w-full p-1 border border-gray-300 rounded text-sm" min="1" />
+                  <label className="block text-xs font-bold mb-1 text-gray-800">Spasi (m)</label>
+                  <input type="number" value={spasi} onChange={(e) => setSpasi(Math.max(1, parseInt(e.target.value) || 1))} className="w-full p-1 border border-gray-600 rounded text-sm" min="1" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold mb-1">Panjang (m)</label>
-                  <input type="number" value={panjang} onChange={(e) => setPanjang(Math.max(1, parseInt(e.target.value) || 1))} className="w-full p-1 border border-gray-300 rounded text-sm" min="1" />
+                  <label className="block text-xs font-bold mb-1 text-gray-800">Panjang (m)</label>
+                  <input type="number" value={panjang} onChange={(e) => setPanjang(Math.max(1, parseInt(e.target.value) || 1))} className="w-full p-1 border border-gray-600 rounded text-sm" min="1" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold mb-1">Area Pemotong</label>
-                <select value={selectedAreaId ?? ""} onChange={(e) => setSelectedAreaId(e.target.value ? Number(e.target.value) : null)} className="w-full p-2 border border-gray-300 rounded text-sm">
+                <label className="block text-xs font-bold mb-1 text-gray-800">Area Pemotong</label>
+                <select value={selectedAreaId ?? ""} onChange={(e) => setSelectedAreaId(e.target.value ? Number(e.target.value) : null)} className="w-full p-2 border border-gray-600 rounded text-sm">
                   <option value="">-- Pilih --</option>
                   {areaOptions.map((area) => (
                     <option key={area.id} value={area.id}>
