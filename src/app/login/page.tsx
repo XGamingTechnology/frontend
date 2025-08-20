@@ -4,77 +4,66 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
+// Tipe untuk user
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  fullName: string;
+  avatarUrl: string;
+}
+
+// Tipe untuk login response
+interface LoginResponse {
+  success: boolean;
+  message: string;
+  token: string;
+  user: User;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Dummy user untuk testing login
-  const dummyUsers = [
-    {
-      email: "admin@example.com",
-      password: "admin123",
-      role: "admin",
-    },
-    {
-      email: "user@example.com",
-      password: "user123",
-      role: "user",
-    },
-  ];
-
-  // Proses login saat form disubmit
-  const handleLogin = async (e: React.FormEvent) => {
+  // ✅ Tambah tipe: React.FormEvent<HTMLFormElement>
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
 
     try {
-      const response = await fetch("http://localhost:5000/graphql", {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          query: `
-            mutation Login($email: String!, $password: String!) {
-              login(email: $email, password: $password) {
-                success
-                token
-                user {
-                  id
-                  username
-                  role
-                  fullName
-                  avatarUrl
-                }
-                message
-              }
-            }
-          `,
-          variables: { email, password },
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
-      const result = await response.json();
+      const result: LoginResponse = await response.json();
 
-      if (result.data?.login.success) {
-        const { token, user } = result.data.login;
+      if (result.success) {
+        localStorage.setItem("authToken", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
 
-        // Simpan di localStorage
-        localStorage.setItem("authToken", token);
-        localStorage.setItem("user", JSON.stringify(user));
-
-        // Redirect berdasarkan role
-        if (user.role === "admin") {
+        if (result.user.role === "admin") {
           router.push("/admin");
         } else {
           router.push("/map");
         }
+        router.refresh();
       } else {
-        alert(result.data?.login.message || "Login gagal");
+        setError(result.message || "Login gagal");
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("Terjadi kesalahan saat login. Cek koneksi backend.");
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Gagal terhubung ke server. Pastikan backend berjalan di http://localhost:5000");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,29 +90,31 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block mb-1 text-sm font-medium text-black dark:text-black">Email</label>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Email</label>
               <input
                 type="email"
-                className="w-full px-4 py-2 border border-black-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:outline-none text-black dark:text-black"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:outline-none text-gray-900"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                 required
               />
             </div>
 
             <div>
-              <label className="block mb-1 text-sm font-medium text-black dark:text-black">Password</label>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Password</label>
               <input
                 type="password"
-                className="w-full px-4 py-2 border border-black-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:outline-none text-black dark:text-black"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:outline-none text-gray-900"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                 required
               />
             </div>
 
-            <button type="submit" className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 rounded-md transition">
-              Login
+            {error && <div className="text-red-500 text-sm bg-red-50 p-3 rounded-md">{error}</div>}
+
+            <button type="submit" disabled={loading} className={`w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 rounded-md transition ${loading ? "opacity-70 cursor-not-allowed" : ""}`}>
+              {loading ? "Memproses..." : "Login"}
             </button>
 
             {/* 🔗 Link ke Halaman Register */}

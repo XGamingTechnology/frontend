@@ -6,6 +6,35 @@ import { useTool } from "@/context/ToolContext";
 import * as L from "leaflet";
 import { Feature } from "geojson";
 
+// ✅ Helper: Ambil token dari localStorage
+const getAuthToken = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("authToken");
+};
+
+// ✅ Helper: Tambah header otentikasi
+const getAuthHeaders = () => {
+  const token = getAuthToken();
+  console.log("🔐 Token ditemukan:", !!token ? "Ya" : "Tidak");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+// ✅ Helper: Decode JWT untuk debug
+const decodeToken = (token: string | null) => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    console.log("👤 Token payload:", payload);
+    return payload;
+  } catch (e) {
+    console.error("❌ Gagal decode token:", e);
+    return null;
+  }
+};
+
 type Tool = "simulasi" | "drawline" | "drawpolygon" | null;
 
 interface PolygonSurveyPanelProps {
@@ -69,32 +98,33 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
 
   // --- PROSES SURVEY DARI POLYGON ---
   const handleProcessSurvey = async () => {
-    console.log("🚀 handleProcessSurvey dipanggil");
-    console.log("draftId:", draftId);
-    console.log("mode:", mode);
-
     if (!draftId) {
       alert("Simpan draft polygon terlebih dahulu.");
       return;
     }
 
     const id = `SURVEY_${Math.floor(Date.now() / 1000)}`;
-    console.log("surveyId:", id);
-
     setSurveyId(id);
     setIsProcessing(true);
     setIsDataReady(false);
 
     try {
+      // ✅ Pastikan tipe data benar: Int! dan Float!
       const variables = {
         surveyId: id,
-        polygonDraftId: draftId,
-        lineCount: mode === "lineCount" ? lineCount : null,
-        pointCount: mode === "pointCount" ? pointCount : null,
-        fixedSpacing: mode === "fixedSpacing" ? spacing : null,
+        polygonDraftId: parseInt(draftId as any), // Int!
+        lineCount: mode === "lineCount" ? parseInt(lineCount as any) : null, // Int
+        pointCount: mode === "pointCount" ? parseInt(pointCount as any) : null, // Int
+        fixedSpacing: mode === "fixedSpacing" ? parseFloat(spacing as any) : null, // Float
       };
 
-      console.log("📤 Variables dikirim ke GraphQL:", variables);
+      console.log("🚀 handleProcessSurvey dipanggil");
+      console.log("draftId:", draftId, typeof draftId);
+      console.log("mode:", mode);
+      console.log("lineCount:", lineCount, typeof lineCount);
+      console.log("pointCount:", pointCount, typeof pointCount);
+      console.log("spacing:", spacing, typeof spacing);
+      console.log(":variables:", variables);
 
       const requestBody = {
         query: `
@@ -120,18 +150,16 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
         variables,
       };
 
-      console.log("📝 Request Body:", JSON.stringify(requestBody, null, 2));
+      console.log("📤 Mengirim ke GraphQL:", JSON.stringify(requestBody, null, 2));
 
       const res = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(requestBody),
       });
 
-      // 🔥 Debug: Lihat status dan response text
       console.log("📡 HTTP Status:", res.status, res.statusText);
+
       const responseText = await res.text();
       console.log("🔍 Raw Response dari Server:", responseText);
 
@@ -145,7 +173,6 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
 
       console.log("✅ Response JSON:", data);
 
-      // Cek apakah ada error di level GraphQL
       if (data.errors) {
         console.error("❌ GraphQL Errors:", data.errors);
         throw new Error(`GraphQL Error: ${data.errors[0].message}`);
@@ -201,7 +228,7 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
     try {
       const res = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
             query GetSamplingPoints($surveyId: String!) {
@@ -274,6 +301,12 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
     setPointCount(20);
     setSpacing(100);
   };
+
+  // 🔥 Debug: Cek token saat mount
+  useEffect(() => {
+    const token = getAuthToken();
+    decodeToken(token);
+  }, []);
 
   return (
     <div className="absolute bottom-4 right-4 z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200">

@@ -13,6 +13,35 @@ import LineSurveyPanel from "@/components/panels/LineSurveyPanel";
 import PolygonSurveyPanel from "@/components/panels/PolygonSurveyPanel";
 import type { Feature } from "geojson";
 
+// --- Helper: Ambil token dari localStorage ---
+const getAuthToken = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("authToken");
+};
+
+// --- Helper: Tambah header otentikasi ---
+const getAuthHeaders = () => {
+  const token = getAuthToken();
+  console.log("🔐 Token ditemukan:", !!token ? "Ya" : "Tidak");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+// --- Helper: Decode JWT untuk debug ---
+const decodeToken = (token: string | null) => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    console.log("👤 Token payload:", payload);
+    return payload;
+  } catch (e) {
+    console.error("❌ Gagal decode token:", e);
+    return null;
+  }
+};
+
 // --- ICONS ---
 const buoyIcon = new Icon({
   iconUrl: "/Pin.svg",
@@ -135,9 +164,10 @@ export default function MapComponent({
     };
 
     try {
+      console.log("📤 Mengirim saveRiverLineDraft:", geojsonLine);
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
             mutation SaveRiverLineDraft($geom: JSON!) {
@@ -152,7 +182,23 @@ export default function MapComponent({
         }),
       });
 
-      const data = await response.json();
+      console.log("📡 HTTP Status:", response.status, response.statusText);
+      const text = await response.text();
+      console.log("🔍 Raw Response:", text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("❌ Response bukan JSON:", text);
+        throw new Error("Server mengembalikan data tidak valid");
+      }
+
+      if (data.errors) {
+        console.error("❌ GraphQL Errors:", data.errors);
+        throw new Error(data.errors[0].message || "Gagal simpan draft");
+      }
+
       if (data.data?.saveRiverLineDraft.success) {
         const newDraftId = data.data.saveRiverLineDraft.draftId;
         setDraftId(newDraftId);
@@ -182,9 +228,10 @@ export default function MapComponent({
     };
 
     try {
+      console.log("📤 Mengirim savePolygonDraft:", geojsonPolygon);
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
             mutation SavePolygonDraft($geom: JSON!) {
@@ -199,7 +246,23 @@ export default function MapComponent({
         }),
       });
 
-      const data = await response.json();
+      console.log("📡 HTTP Status:", response.status, response.statusText);
+      const text = await response.text();
+      console.log("🔍 Raw Response:", text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("❌ Response bukan JSON:", text);
+        throw new Error("Server mengembalikan data tidak valid");
+      }
+
+      if (data.errors) {
+        console.error("❌ GraphQL Errors:", data.errors);
+        throw new Error(data.errors[0].message || "Gagal simpan draft");
+      }
+
       if (data.data?.savePolygonDraft.success) {
         const newDraftId = data.data.savePolygonDraft.draftId;
         setPolygonDraftId(newDraftId);
@@ -268,7 +331,7 @@ export default function MapComponent({
       };
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
             mutation CreateSpatialFeature(
@@ -320,6 +383,12 @@ export default function MapComponent({
     setFormLatLng(null);
     setShowToponimiForm(false);
   };
+
+  // 🔥 Debug: Cek token saat komponen mount
+  useEffect(() => {
+    const token = getAuthToken();
+    decodeToken(token);
+  }, []);
 
   return (
     <>

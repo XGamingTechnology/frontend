@@ -6,6 +6,35 @@ import { useTool } from "@/context/ToolContext";
 import * as L from "leaflet";
 import { Feature } from "geojson";
 
+// ✅ Helper: Ambil token dari localStorage
+const getAuthToken = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("authToken");
+};
+
+// ✅ Helper: Tambah header otentikasi
+const getAuthHeaders = () => {
+  const token = getAuthToken();
+  console.log("🔐 Token ditemukan:", !!token ? "Ya" : "Tidak");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+// ✅ Helper: Decode JWT untuk debug
+const decodeToken = (token: string | null) => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    console.log("👤 Token payload:", payload);
+    return payload;
+  } catch (e) {
+    console.error("❌ Gagal decode token:", e);
+    return null;
+  }
+};
+
 type Tool = "simulasi" | "drawline" | "drawpolygon" | null;
 
 interface LineSurveyPanelProps {
@@ -55,9 +84,10 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   useEffect(() => {
     const fetchAreas = async () => {
       try {
+        console.log("🔍 Memuat daftar area_sungai...");
         const res = await fetch("http://localhost:5000/graphql", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             query: `
               query GetLayerOptions($layerType: String!) {
@@ -70,16 +100,37 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
             variables: { layerType: "area_sungai" },
           }),
         });
-        const data = await res.json();
+
+        console.log("📡 Status response:", res.status, res.statusText);
+
+        const text = await res.text();
+        console.log("🔍 Raw response:", text);
+
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          console.error("❌ Response bukan JSON valid:", text);
+          throw new Error("Server mengembalikan data tidak valid");
+        }
+
+        if (data.errors) {
+          console.error("❌ GraphQL Errors:", data.errors);
+          throw new Error(`GraphQL Error: ${data.errors[0].message}`);
+        }
+
         if (data.data?.layerOptions) {
+          console.log("✅ Area berhasil dimuat:", data.data.layerOptions);
           setAreaOptions(data.data.layerOptions);
           if (!selectedAreaId && data.data.layerOptions.length > 0) {
             setSelectedAreaId(data.data.layerOptions[0].id);
           }
+        } else {
+          throw new Error("Tidak ada data area");
         }
       } catch (err) {
-        console.error("Gagal muat area:", err);
-        alert("Gagal memuat daftar area. Coba lagi nanti.");
+        console.error("❌ Gagal muat area:", err);
+        alert("Gagal memuat daftar area. Cek konsol untuk detail.");
       }
     };
     fetchAreas();
@@ -98,41 +149,88 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     setIsDataReady(false);
 
     try {
+      // ✅ Pastikan semua parameter tipe datanya benar
+      const variables = {
+        surveyId: id,
+        draftId: parseInt(draftId as any), // Int!
+        areaId: parseInt(selectedAreaId as any), // Int!
+        spasi: parseFloat(spasi as any), // Float!
+        panjang: parseFloat(panjang as any), // Float!
+      };
+
+      console.log("🚀 handleProcessSurvey dipanggil");
+      console.log("draftId:", draftId, typeof draftId);
+      console.log("areaId:", selectedAreaId, typeof selectedAreaId);
+      console.log("spasi:", spasi, typeof spasi);
+      console.log("panjang:", panjang, typeof panjang);
+      console.log(":variables:", variables);
+
+      const requestBody = {
+        query: `
+          mutation GenerateSurvey(
+            $surveyId: String!
+            $draftId: Int!
+            $areaId: Int!
+            $spasi: Float!
+            $panjang: Float!
+          ) {
+            generateSurvey(
+              surveyId: $surveyId
+              riverLineDraftId: $draftId
+              areaId: $areaId
+              spasi: $spasi
+              panjang: $panjang
+            ) {
+              success
+              message
+            }
+          }
+        `,
+        variables,
+      };
+
+      console.log("📤 Mengirim ke GraphQL:", JSON.stringify(requestBody, null, 2));
+
       const res = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: `
-            mutation GenerateSurvey(
-              $surveyId: String!
-              $draftId: Int!
-              $areaId: Int!
-              $spasi: Float!
-              $panjang: Float!
-            ) {
-              generateSurvey(
-                surveyId: $surveyId
-                riverLineDraftId: $draftId
-                areaId: $areaId
-                spasi: $spasi
-                panjang: $panjang
-              ) {
-                success
-                message
-              }
-            }
-          `,
-          variables: { surveyId: id, draftId, areaId: selectedAreaId, spasi, panjang },
-        }),
+        headers: getAuthHeaders(),
+        body: JSON.stringify(requestBody),
       });
 
-      const data = await res.json();
-      if (data.data?.generateSurvey.success) {
+      console.log("📡 HTTP Status:", res.status, res.statusText);
+
+      const responseText = await res.text();
+      console.log("🔍 Raw Response dari Server:", responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("❌ Response bukan JSON valid:", responseText);
+        throw new Error("Server mengembalikan data tidak valid");
+      }
+
+      console.log("✅ Response JSON:", data);
+
+      if (data.errors) {
+        console.error("❌ GraphQL Errors:", data.errors);
+        throw new Error(`GraphQL Error: ${data.errors[0].message}`);
+      }
+
+      const result = data.data?.generateSurvey;
+
+      if (!result) {
+        console.error("❌ Tidak ada data hasil dari mutation");
+        throw new Error("Tidak ada hasil dari server");
+      }
+
+      console.log("🎯 Hasil Mutation:", result);
+
+      if (result.success) {
         alert("✅ Proses survey selesai. Menampilkan hasil...");
-        await refreshData(); // ⬅️ Refresh data → otomatis munculkan transek & titik
+        await refreshData();
         setIsDataReady(true);
 
-        // Update debug info
         const validSampling = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point").length;
         const matching = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point" && f.properties?.survey_id === id).length;
 
@@ -142,7 +240,9 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
           matchingCount: matching || 0,
         });
       } else {
-        throw new Error(data.data?.generateSurvey.message || "Proses gagal");
+        const errorMsg = result.message || "Proses gagal";
+        console.error("❌ Mutation gagal:", errorMsg);
+        alert(`❌ Gagal: ${errorMsg}`);
       }
     } catch (err: any) {
       console.error("❌ Gagal proses survey:", err);
@@ -167,7 +267,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     try {
       const res = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
             query GetSamplingPoints($surveyId: String!) {
@@ -203,8 +303,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
             geometry: p.geometry,
           })),
         };
-        const jsonStr = JSON.stringify(geojson, null, 2);
-        downloadFile(jsonStr, `${surveyId}.geojson`, "application/json");
+        downloadFile(JSON.stringify(geojson, null, 2), `${surveyId}.geojson`, "application/json");
       }
 
       if (format === "csv") {
@@ -213,8 +312,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
           const [lng, lat] = p.geometry?.coordinates || ["-", "-"];
           return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
         });
-        const csv = [headers.join(","), ...rows].join("\n");
-        downloadFile(csv, `${surveyId}.csv`, "text/csv");
+        downloadFile([headers.join(","), ...rows].join("\n"), `${surveyId}.csv`, "text/csv");
       }
     } catch (err) {
       alert("Gagal ambil data untuk export.");
@@ -244,6 +342,12 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
       setSelectedAreaId(areaOptions[0].id);
     }
   };
+
+  // 🔥 Debug: Info Token dan User
+  useEffect(() => {
+    const token = getAuthToken();
+    decodeToken(token);
+  }, []);
 
   return (
     <div className="absolute bottom-4 right-4 z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200">

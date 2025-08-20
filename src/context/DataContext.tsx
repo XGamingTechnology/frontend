@@ -42,6 +42,21 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+// --- Helper: Ambil token dari localStorage ---
+const getAuthToken = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("authToken");
+};
+
+// --- Helper: Tambah header otentikasi ---
+const getAuthHeaders = () => {
+  const token = getAuthToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [features, setFeatures] = useState<FeatureCollection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +110,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(), // ✅ Kirim Authorization header
         body: JSON.stringify({
           query: `
             {
@@ -115,7 +130,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       const result = await response.json();
-      if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(", "));
+
+      // ✅ Cek error dari GraphQL
+      if (result.errors) {
+        const errorMsg = result.errors.map((e: any) => e.message).join(", ");
+        throw new Error(errorMsg);
+      }
 
       const geojson: FeatureCollection = {
         type: "FeatureCollection",
@@ -152,7 +172,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(), // ✅
         body: JSON.stringify({
           query: `{ layerDefinitions { id name description layerType source meta } }`,
         }),
@@ -234,7 +254,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(), // ✅
         body: JSON.stringify({
           query: `
             mutation CreateSpatialFeature(

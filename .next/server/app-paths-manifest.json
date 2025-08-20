@@ -1,3 +1,7 @@
 {
-  "/map/page": "app/map/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/login/page": "app/login/page.js",
+  "/map/page": "app/map/page.js",
+  "/page": "app/page.js",
+  "/register/page": "app/register/page.js"
 }
