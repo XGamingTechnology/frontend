@@ -1,6 +1,6 @@
 // src/components/panels/LineSurveyPanel.tsx
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { useTool } from "@/context/ToolContext";
 import * as L from "leaflet";
@@ -67,6 +67,54 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     validSamplingCount: number;
     matchingCount: number;
   } | null>(null);
+
+  // --- DRAGGABLE ---
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 32, y: 16 }); // default posisi
+
+  // Muat posisi dari localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("lineSurveyPanelPosition");
+    if (saved) {
+      try {
+        const pos = JSON.parse(saved);
+        setPosition(pos);
+      } catch (e) {
+        console.warn("Gagal baca posisi LineSurveyPanel");
+      }
+    }
+  }, []);
+
+  // Simpan posisi ke localStorage
+  const savePosition = (x: number, y: number) => {
+    setPosition({ x, y });
+    localStorage.setItem("lineSurveyPanelPosition", JSON.stringify({ x, y }));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+
+    setIsDragging(true);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newX = e.clientX - offsetX;
+      const newY = e.clientY - offsetY;
+      savePosition(newX, newY);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
 
   // Cek apakah garis sudah selesai
   const hasCompletedLine = drawnLine.length >= 2;
@@ -149,13 +197,12 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     setIsDataReady(false);
 
     try {
-      // ✅ Pastikan semua parameter tipe datanya benar
       const variables = {
         surveyId: id,
-        draftId: parseInt(draftId as any), // Int!
-        areaId: parseInt(selectedAreaId as any), // Int!
-        spasi: parseFloat(spasi as any), // Float!
-        panjang: parseFloat(panjang as any), // Float!
+        draftId: parseInt(draftId as any),
+        areaId: parseInt(selectedAreaId as any),
+        spasi: parseFloat(spasi as any),
+        panjang: parseFloat(panjang as any),
       };
 
       console.log("🚀 handleProcessSurvey dipanggil");
@@ -252,7 +299,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     }
   };
 
-  // --- EXPORT SAMPLING POINTS: Langsung dari DB ---
+  // --- EXPORT SAMPLING POINTS ---
   const handleExport = async (format: "csv" | "geojson") => {
     if (!surveyId) {
       alert("Belum ada proses survey.");
@@ -330,7 +377,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     URL.revokeObjectURL(url);
   };
 
-  // --- RESET ALUR: Mulai dari awal ---
+  // --- RESET ALUR ---
   const resetDraft = () => {
     setDraftId(null);
     setIsDataReady(false);
@@ -350,8 +397,19 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   }, []);
 
   return (
-    <div className="absolute bottom-4 right-4 z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200">
-      <div className="flex items-center justify-between mb-4">
+    <div
+      ref={panelRef}
+      className="absolute z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200 cursor-move"
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        transform: "translate(0, 0)",
+        willChange: isDragging ? "transform" : "auto",
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      {/* Header sebagai handle drag */}
+      <div className="flex items-center justify-between mb-4 cursor-grab active:cursor-grabbing">
         <h3 className="text-xl font-bold text-gray-800">🌊 Transek Sungai</h3>
         <button onClick={onClose} className="text-gray-500 hover:text-red-500">
           ←
@@ -459,7 +517,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
             </>
           )}
 
-          {/* Hapus Semua (reset state) */}
+          {/* Hapus Semua */}
           <button
             onClick={() => {
               onDeleteLine();
@@ -471,6 +529,9 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
           </button>
         </div>
       )}
+
+      {/* Indicator saat dragging */}
+      {isDragging && <div className="absolute inset-0 border-2 border-blue-400 rounded-lg pointer-events-none"></div>}
     </div>
   );
 }
