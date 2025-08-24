@@ -1,6 +1,6 @@
 // src/components/panels/PolygonSurveyPanel.tsx
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { useTool } from "@/context/ToolContext";
 import * as L from "leaflet";
@@ -70,6 +70,60 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
     matchingCount: number;
   } | null>(null);
 
+  // --- DRAGGABLE ---
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 32, y: 16 }); // default posisi
+
+  // Muat posisi dari localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("polygonSurveyPanelPosition");
+    if (saved) {
+      try {
+        const pos = JSON.parse(saved);
+        setPosition(pos);
+      } catch (e) {
+        console.warn("Gagal baca posisi PolygonSurveyPanel");
+      }
+    }
+  }, []);
+
+  // Simpan posisi ke localStorage
+  const savePosition = (x: number, y: number) => {
+    setPosition({ x, y });
+    localStorage.setItem("polygonSurveyPanelPosition", JSON.stringify({ x, y }));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // ✅ Hanya tombol kiri mouse (0 = left)
+    if (e.button !== 0) return;
+
+    if (!panelRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+
+    setIsDragging(true);
+
+    // ✅ Prevent text selection saat drag
+    e.preventDefault();
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newX = e.clientX - offsetX;
+      const newY = e.clientY - offsetY;
+      savePosition(newX, newY);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
   // Cek apakah polygon sudah selesai
   const hasCompletedPolygon = drawnPolygon.length >= 3;
 
@@ -109,13 +163,12 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
     setIsDataReady(false);
 
     try {
-      // ✅ Pastikan tipe data benar: Int! dan Float!
       const variables = {
         surveyId: id,
-        polygonDraftId: parseInt(draftId as any), // Int!
-        lineCount: mode === "lineCount" ? parseInt(lineCount as any) : null, // Int
-        pointCount: mode === "pointCount" ? parseInt(pointCount as any) : null, // Int
-        fixedSpacing: mode === "fixedSpacing" ? parseFloat(spacing as any) : null, // Float
+        polygonDraftId: parseInt(draftId as any),
+        lineCount: mode === "lineCount" ? parseInt(lineCount as any) : null,
+        pointCount: mode === "pointCount" ? parseInt(pointCount as any) : null,
+        fixedSpacing: mode === "fixedSpacing" ? parseFloat(spacing as any) : null,
       };
 
       console.log("🚀 handleProcessSurvey dipanggil");
@@ -213,7 +266,43 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
     }
   };
 
-  // --- EXPORT SAMPLING POINTS: Langsung dari DB ---
+  // --- HAPUS HASIL SURVEY ---
+  const handleDeleteSurveyResult = async () => {
+    if (!surveyId) return alert("Belum ada hasil survey.");
+    if (!confirm(`Yakin ingin hapus semua hasil dari survey ini?\nIni akan menghapus transek dan titik sampling.`)) return;
+
+    try {
+      const res = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          query: `
+            mutation DeleteSurveyResults($surveyId: String!) {
+              deleteSurveyResults(surveyId: $surveyId) {
+                success
+                message
+              }
+            }
+          `,
+          variables: { surveyId },
+        }),
+      });
+
+      const data = await res.json();
+      if (data.data?.deleteSurveyResults.success) {
+        alert(data.data.deleteSurveyResults.message);
+        setIsDataReady(false);
+        setDebugInfo(null);
+        await refreshData(); // Refresh peta
+      } else {
+        throw new Error(data.data?.deleteSurveyResults.message || "Gagal hapus hasil survey");
+      }
+    } catch (err: any) {
+      alert(`❌ Gagal: ${err.message}`);
+    }
+  };
+
+  // --- EXPORT SAMPLING POINTS ---
   const handleExport = async (format: "csv" | "geojson") => {
     if (!surveyId) {
       alert("Belum ada proses survey.");
@@ -309,8 +398,19 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
   }, []);
 
   return (
-    <div className="absolute bottom-4 right-4 z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200">
-      <div className="flex items-center justify-between mb-4">
+    <div
+      ref={panelRef}
+      className="absolute z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200"
+      style={{
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        transform: "translate(0, 0)",
+        willChange: isDragging ? "transform" : "auto",
+        cursor: isDragging ? "grabbing" : "default",
+      }}
+    >
+      {/* Header sebagai handle drag */}
+      <div className="flex items-center justify-between mb-4 cursor-grab active:cursor-grabbing select-none" onMouseDown={handleMouseDown}>
         <h3 className="text-xl font-bold text-gray-800">📐 Transek Polygon</h3>
         <button onClick={onClose} className="text-gray-500 hover:text-red-500">
           ←
@@ -369,27 +469,55 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
               {mode === "lineCount" && (
                 <div className="mb-3">
                   <label className="block text-xs font-bold mb-1 text-gray-800">Jumlah Garis</label>
-                  <input type="number" value={lineCount} onChange={(e) => setLineCount(Math.max(1, parseInt(e.target.value) || 1))} className="w-full p-1 border border-gray-600 rounded text-sm" min="1" />
+                  <input
+                    type="number"
+                    value={lineCount}
+                    onChange={(e) => setLineCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="1"
+                    placeholder="10"
+                  />
                 </div>
               )}
 
               {mode === "pointCount" && (
                 <div className="mb-3">
-                  <label className="block text-xs font-bold mb-1 text-gray-800">Jumlah Titik Sampling</label>
-                  <input type="number" value={pointCount} onChange={(e) => setPointCount(Math.max(2, parseInt(e.target.value) || 2))} className="w-full p-1 border border-gray-600 rounded text-sm" min="2" />
+                  <label className="block text-xs font-bold mb-1 text-gray-800">Jarak Antar Garis (m)</label>
+                  <input
+                    type="number"
+                    value={pointCount}
+                    onChange={(e) => setPointCount(Math.max(2, parseInt(e.target.value) || 2))}
+                    className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="2"
+                    placeholder="20"
+                  />
                 </div>
               )}
 
               {mode === "fixedSpacing" && (
                 <div className="mb-3">
                   <label className="block text-xs font-bold mb-1 text-gray-800">Jarak Antar Garis (m)</label>
-                  <input type="number" value={spacing} onChange={(e) => setSpacing(Math.max(1, parseFloat(e.target.value) || 1))} className="w-full p-1 border border-gray-600 rounded text-sm" min="1" />
+                  <input
+                    type="number"
+                    value={spacing}
+                    onChange={(e) => setSpacing(Math.max(1, parseFloat(e.target.value) || 1))}
+                    className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="1"
+                    placeholder="100"
+                  />
                 </div>
               )}
 
               <button onClick={handleProcessSurvey} disabled={isProcessing} className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white py-2 rounded mt-3 font-semibold">
                 {isProcessing ? "Memproses..." : "🚀 Proses Transek"}
               </button>
+
+              {/* Tombol Hapus Hasil Survey */}
+              {isDataReady && (
+                <button onClick={handleDeleteSurveyResult} className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded mt-2 text-sm">
+                  🗑️ Hapus Hasil Survey
+                </button>
+              )}
 
               {/* Debug Info */}
               {draftId && (
@@ -446,6 +574,9 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
           </button>
         </div>
       )}
+
+      {/* Indicator saat dragging */}
+      {isDragging && <div className="absolute inset-0 border-2 border-blue-400 rounded-lg pointer-events-none"></div>}
     </div>
   );
 }

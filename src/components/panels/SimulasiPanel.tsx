@@ -34,12 +34,18 @@ export default function SimulasiPanel({ onClosePanel, setActiveTool, setSurveyMo
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // ✅ Hanya tombol kiri mouse (0 = left, 1 = middle, 2 = right)
+    if (e.button !== 0) return;
+
     if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left;
     const offsetY = e.clientY - rect.top;
 
     setIsDragging(true);
+
+    // ✅ Prevent text selection saat drag
+    e.preventDefault();
 
     const handleMouseMove = (e: MouseEvent) => {
       const newX = e.clientX - offsetX;
@@ -60,17 +66,20 @@ export default function SimulasiPanel({ onClosePanel, setActiveTool, setSurveyMo
   return (
     <div
       ref={panelRef}
-      className="absolute z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200 cursor-move"
+      className="absolute z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        transform: "translate(0, 0)", // stabil
+        transform: "translate(0, 0)",
         willChange: isDragging ? "transform" : "auto",
+        cursor: isDragging ? "grabbing" : "default",
       }}
-      onMouseDown={handleMouseDown}
     >
       {/* Header sebagai handle drag */}
-      <div className="flex items-center justify-between mb-4 cursor-grab active:cursor-grabbing">
+      <div
+        className="flex items-center justify-between mb-4 cursor-grab active:cursor-grabbing select-none"
+        onMouseDown={handleMouseDown} // ✅ Hanya header yang bisa drag
+      >
         <h3 className="text-xl font-bold text-gray-800">⚙️ Pilih Alur</h3>
         <button onClick={onClosePanel} className="text-gray-500 hover:text-red-500">
           ✕

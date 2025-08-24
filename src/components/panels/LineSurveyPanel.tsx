@@ -93,12 +93,18 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    // ✅ Hanya tombol kiri mouse (0 = left, 1 = middle, 2 = right)
+    if (e.button !== 0) return;
+
     if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left;
     const offsetY = e.clientY - rect.top;
 
     setIsDragging(true);
+
+    // ✅ Prevent text selection saat drag
+    e.preventDefault();
 
     const handleMouseMove = (e: MouseEvent) => {
       const newX = e.clientX - offsetX;
@@ -299,6 +305,42 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     }
   };
 
+  // --- HAPUS HASIL SURVEY ---
+  const handleDeleteSurveyResult = async () => {
+    if (!surveyId) return alert("Belum ada hasil survey.");
+    if (!confirm(`Yakin ingin hapus semua hasil dari survey ini?\nIni akan menghapus transek dan titik sampling.`)) return;
+
+    try {
+      const res = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          query: `
+            mutation DeleteSurveyResults($surveyId: String!) {
+              deleteSurveyResults(surveyId: $surveyId) {
+                success
+                message
+              }
+            }
+          `,
+          variables: { surveyId },
+        }),
+      });
+
+      const data = await res.json();
+      if (data.data?.deleteSurveyResults.success) {
+        alert(data.data.deleteSurveyResults.message);
+        setIsDataReady(false);
+        setDebugInfo(null);
+        await refreshData(); // Refresh peta
+      } else {
+        throw new Error(data.data?.deleteSurveyResults.message || "Gagal hapus hasil survey");
+      }
+    } catch (err: any) {
+      alert(`❌ Gagal: ${err.message}`);
+    }
+  };
+
   // --- EXPORT SAMPLING POINTS ---
   const handleExport = async (format: "csv" | "geojson") => {
     if (!surveyId) {
@@ -399,17 +441,17 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   return (
     <div
       ref={panelRef}
-      className="absolute z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200 cursor-move"
+      className="absolute z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
         transform: "translate(0, 0)",
         willChange: isDragging ? "transform" : "auto",
+        cursor: isDragging ? "grabbing" : "default",
       }}
-      onMouseDown={handleMouseDown}
     >
       {/* Header sebagai handle drag */}
-      <div className="flex items-center justify-between mb-4 cursor-grab active:cursor-grabbing">
+      <div className="flex items-center justify-between mb-4 cursor-grab active:cursor-grabbing select-none" onMouseDown={handleMouseDown}>
         <h3 className="text-xl font-bold text-gray-800">🌊 Transek Sungai</h3>
         <button onClick={onClose} className="text-gray-500 hover:text-red-500">
           ←
@@ -450,17 +492,35 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <div>
                   <label className="block text-xs font-bold mb-1 text-gray-800">Spasi (m)</label>
-                  <input type="number" value={spasi} onChange={(e) => setSpasi(Math.max(1, parseInt(e.target.value) || 1))} className="w-full p-1 border border-gray-600 rounded text-sm" min="1" />
+                  <input
+                    type="number"
+                    value={spasi}
+                    onChange={(e) => setSpasi(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="1"
+                    placeholder="100"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold mb-1 text-gray-800">Panjang (m)</label>
-                  <input type="number" value={panjang} onChange={(e) => setPanjang(Math.max(1, parseInt(e.target.value) || 1))} className="w-full p-1 border border-gray-600 rounded text-sm" min="1" />
+                  <input
+                    type="number"
+                    value={panjang}
+                    onChange={(e) => setPanjang(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="1"
+                    placeholder="300"
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold mb-1 text-gray-800">Area Pemotong</label>
-                <select value={selectedAreaId ?? ""} onChange={(e) => setSelectedAreaId(e.target.value ? Number(e.target.value) : null)} className="w-full p-2 border border-gray-600 rounded text-sm">
+                <select
+                  value={selectedAreaId ?? ""}
+                  onChange={(e) => setSelectedAreaId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full p-2 bg-white border border-gray-600 rounded text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
                   <option value="">-- Pilih --</option>
                   {areaOptions.map((area) => (
                     <option key={area.id} value={area.id}>
@@ -473,6 +533,13 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
               <button onClick={handleProcessSurvey} disabled={isProcessing} className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white py-2 rounded mt-3 font-semibold">
                 {isProcessing ? "Memproses..." : "🚀 Proses Survey"}
               </button>
+
+              {/* Tombol Hapus Hasil Survey */}
+              {isDataReady && (
+                <button onClick={handleDeleteSurveyResult} className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded mt-2 text-sm">
+                  🗑️ Hapus Hasil Survey
+                </button>
+              )}
 
               {/* Debug Info */}
               {draftId && (

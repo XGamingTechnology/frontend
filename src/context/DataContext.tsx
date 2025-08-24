@@ -37,6 +37,8 @@ interface DataContextType {
   errorLayerGroups: string | null;
   refreshLayerGroups: () => void;
   addFeature: (feature: Feature) => Promise<void>;
+  deleteFeature: (id: number) => Promise<void>;
+  updateFeature: (id: number, updates: Partial<Feature["properties"] & { geometry: any }>) => Promise<void>;
   exportFeatures: (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string; filter?: (feature: Feature) => boolean }) => void;
 }
 
@@ -110,7 +112,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: getAuthHeaders(), // ✅ Kirim Authorization header
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
             {
@@ -131,7 +133,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const result = await response.json();
 
-      // ✅ Cek error dari GraphQL
       if (result.errors) {
         const errorMsg = result.errors.map((e: any) => e.message).join(", ");
         throw new Error(errorMsg);
@@ -155,7 +156,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })),
       };
 
-      setFeatures(geojson);
+      // ✅ PASTIKAN REFERENSI BARU
+      setFeatures({ ...geojson });
       updateRiverLineFromFeatures(geojson.features);
     } catch (err: any) {
       console.error("❌ Gagal ambil spatialFeatures:", err);
@@ -172,7 +174,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: getAuthHeaders(), // ✅
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `{ layerDefinitions { id name description layerType source meta } }`,
         }),
@@ -181,11 +183,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await response.json();
       if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(", "));
 
-      const layers = result.data.layerDefinitions;
+      let layersFromDB: LayerDefinition[] = result.data.layerDefinitions || [];
 
-      // Tambah layer proses otomatis
-      const extendedLayers: LayerDefinition[] = [
-        ...layers,
+      // ✅ Filter hanya layer yang dibutuhkan
+      const requiredLayerTypes = ["toponimi_user", "valid_transect_line", "valid_sampling_point", "toponimi", "area_sungai", "batimetri"];
+
+      layersFromDB = layersFromDB.filter((l) => requiredLayerTypes.includes(l.layerType));
+
+      // ✅ Tambahkan definisi lengkap
+      const fullLayerDefinitions: LayerDefinition[] = [
+        {
+          id: "toponimi_user",
+          name: "Toponimi (Input User)",
+          description: "Titik toponimi yang ditambahkan oleh user",
+          layerType: "toponimi_user",
+          source: "manual",
+          meta: { fillColor: "#ef4444", color: "#ef4444", radius: 8, fillOpacity: 0.7 },
+        },
         {
           id: "valid_transect_line",
           name: "Valid Transect Line",
@@ -196,26 +210,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         {
           id: "valid_sampling_point",
-          name: "Sampling Point",
+          name: "Valid Sampling Point",
           description: "Titik sampling dengan kedalaman",
           layerType: "valid_sampling_point",
           source: "process_survey",
-          meta: { fillColor: "#00ff00", radius: 6, fillOpacity: 0.7 },
+          meta: { fillColor: "#10b981", color: "#10b981", radius: 6, fillOpacity: 0.7 },
+        },
+        {
+          id: "toponimi",
+          name: "Toponimi (Existing)",
+          description: "Rambu atau pelampung dari data existing",
+          layerType: "toponimi",
+          source: "shp_import",
+          meta: {},
+        },
+        {
+          id: "area_sungai",
+          name: "Area Sungai",
+          description: "Polygon area sungai",
+          layerType: "area_sungai",
+          source: "manual",
+          meta: { fillColor: "#3b82f6", color: "#1d4ed8", fillOpacity: 0.3, weight: 2 },
+        },
+        {
+          id: "batimetri",
+          name: "Batimetri",
+          description: "Garis kedalaman",
+          layerType: "batimetri",
+          source: "manual",
+          meta: { color: "#059669", weight: 2, dashArray: "5,5" },
         },
       ];
 
-      setLayerDefinitions(extendedLayers);
-
-      // Inisialisasi visibility
-      setLayerVisibilityState((prev) => {
-        const updated = { ...prev };
-        extendedLayers.forEach((layer) => {
-          if (updated[layer.id] === undefined) {
-            updated[layer.id] = true;
-          }
-        });
-        return updated;
+      // ✅ Gabung dengan DB
+      const merged = fullLayerDefinitions.map((def) => {
+        const fromDB = layersFromDB.find((l) => l.id === def.id);
+        return fromDB ? { ...def, ...fromDB } : def;
       });
+
+      setLayerDefinitions([...merged]); // ✅ referensi baru
+
+      // ✅ Set visibility default
+      const defaultVisibility: LayerVisibilityState = {};
+      merged.forEach((layer) => {
+        defaultVisibility[layer.id] = true;
+      });
+
+      setLayerVisibilityState((prev) => ({
+        ...defaultVisibility,
+        ...prev,
+      }));
     } catch (err: any) {
       console.error("❌ Gagal ambil layerDefinitions:", err);
       setErrorLayers(err.message);
@@ -254,7 +298,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
-        headers: getAuthHeaders(), // ✅
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
             mutation CreateSpatialFeature(
@@ -283,20 +327,96 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             description: feature.properties?.description,
             geometry: feature.geometry,
             source: feature.properties?.source || "manual",
-            meta: feature.properties,
+            meta: feature.properties?.meta || null,
           },
         }),
       });
 
       const result = await response.json();
       if (result.data?.createSpatialFeature) {
-        await refreshData();
+        await refreshData(); // ✅ refreshData sudah benar
       } else {
         throw new Error(result.errors?.[0]?.message || "Gagal menyimpan feature");
       }
     } catch (err: any) {
       console.error("❌ Gagal simpan feature:", err);
       throw new Error("Tidak dapat terhubung ke server.");
+    }
+  };
+
+  // --- ✅ HAPUS FEATURE ---
+  const deleteFeature = async (id: number) => {
+    try {
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          query: `
+            mutation DeleteSpatialFeature($id: ID!) {
+              deleteSpatialFeature(id: $id) {
+                success
+                message
+              }
+            }
+          `,
+          variables: { id },
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.deleteSpatialFeature.success) {
+        await refreshData();
+        alert(result.data.deleteSpatialFeature.message);
+      } else {
+        throw new Error(result.data?.deleteSpatialFeature.message || "Gagal hapus");
+      }
+    } catch (err: any) {
+      console.error("❌ Gagal hapus feature:", err);
+      alert(`❌ Gagal: ${err.message}`);
+    }
+  };
+
+  // --- ✅ UPDATE FEATURE ---
+  const updateFeature = async (id: number, updates: Partial<Feature["properties"] & { geometry: any }>) => {
+    try {
+      const { geometry, ...meta } = updates;
+      const { name, description, source, ...restMeta } = meta;
+
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          query: `
+            mutation UpdateSpatialFeature($id: ID!, $name: String, $description: String, $geometry: GeometryInput, $source: String, $meta: MetadataInput) {
+              updateSpatialFeature(id: $id, name: $name, description: $description, geometry: $geometry, source: $source, meta: $meta) {
+                id
+                name
+                description
+                meta
+              }
+            }
+          `,
+          variables: {
+            id,
+            name: name,
+            description: description,
+            source: source,
+            geometry: geometry,
+            meta: Object.keys(restMeta).length > 0 ? restMeta : undefined,
+          },
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.updateSpatialFeature) {
+        await refreshData();
+        alert("✅ Berhasil diperbarui");
+      } else {
+        throw new Error(result.errors?.[0]?.message || "Gagal update");
+      }
+    } catch (err: any) {
+      console.error("❌ Gagal update feature:", err);
+      alert(`❌ Gagal update: ${err.message}`);
     }
   };
 
@@ -311,7 +431,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 500);
   };
 
-  // --- ✅ EXPORT FUNCTION (TETAP ADA UNTUK KOMPATIBILITAS) ---
+  // --- ✅ EXPORT FUNCTION ---
   const exportFeatures = (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string; filter?: (feature: Feature) => boolean }) => {
     const { layerType, source, format = "geojson", filename = "export", filter } = options || {};
 
@@ -322,15 +442,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let filtered = [...features.features];
 
-    if (layerType) {
-      filtered = filtered.filter((f) => f.properties?.layerType === layerType);
-    }
-    if (source) {
-      filtered = filtered.filter((f) => f.properties?.source === source);
-    }
-    if (filter) {
-      filtered = filtered.filter(filter);
-    }
+    if (layerType) filtered = filtered.filter((f) => f.properties?.layerType === layerType);
+    if (source) filtered = filtered.filter((f) => f.properties?.source === source);
+    if (filter) filtered = filtered.filter(filter);
 
     if (filtered.length === 0) {
       alert("Tidak ada data yang sesuai kriteria.");
@@ -344,20 +458,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (format === "csv") {
-      const headers = ["ID", "Transect ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak", "Draft ID"];
+      const headers = ["ID", "Nama", "Deskripsi", "Layer", "Latitude", "Longitude", "Kategori", "Sumber"];
       const rows = filtered.map((f) => {
         const props = f.properties || {};
         const [lng, lat] = f.geometry?.type === "Point" ? f.geometry.coordinates : ["-", "-"];
-        return [
-          f.id || "-",
-          props.transect_id || "-",
-          props.survey_id?.slice(-8) || "-",
-          lat?.toFixed(6) || "-",
-          lng?.toFixed(6) || "-",
-          (props.kedalaman ?? props.depth_value ?? "-").toString(),
-          (props.distance_m || "-").toString(),
-          props.river_line_draft_id || "-",
-        ];
+        return [f.id || "-", props.name || "-", props.description || "-", props.layerType || "-", lat?.toFixed(6) || "-", lng?.toFixed(6) || "-", props.category || props.meta?.category || "-", props.source || "-"];
       });
       const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
       downloadFile(csv, `${filename}.csv`, "text/csv");
@@ -400,6 +505,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorLayerGroups,
         refreshLayerGroups,
         addFeature,
+        deleteFeature,
+        updateFeature,
         exportFeatures,
       }}
     >
