@@ -1,12 +1,21 @@
 {
+  "[project]/src/components/Surface3DPlotClient.tsx [app-client] (ecmascript, next/dynamic entry)": {
+    "id": "[project]/src/components/Surface3DPlotClient.tsx [app-client] (ecmascript, next/dynamic entry)",
+    "files": [
+      "static/chunks/node_modules_plotly_js_dist_plotly_26e3ab27.js",
+      "static/chunks/node_modules_b3ff1995._.js",
+      "static/chunks/src_components_Surface3DPlotClient_tsx_89dce592._.js",
+      "static/chunks/src_components_Surface3DPlotClient_tsx_83d028ce._.js"
+    ]
+  },
   "[project]/src/components/map/MapComponent.tsx [app-client] (ecmascript, next/dynamic entry)": {
     "id": "[project]/src/components/map/MapComponent.tsx [app-client] (ecmascript, next/dynamic entry)",
     "files": [
-      "static/chunks/node_modules_3985bfdb._.js",
+      "static/chunks/node_modules_4eea46e9._.js",
       "static/chunks/src_8ee4093b._.js",
       "static/chunks/node_modules_7c0a685d._.js",
       "static/chunks/node_modules_leaflet_dist_leaflet_88e19fd3.css",
-      "static/chunks/src_components_map_MapComponent_tsx_3f69abf3._.js"
+      "static/chunks/src_components_map_MapComponent_tsx_83d028ce._.js"
     ]
   }
 }

@@ -10,6 +10,18 @@ export interface EchosounderPoint {
   kedalaman: number;
 }
 
+// 🔼 Tipe 3D
+export interface Point3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface Survey3DData {
+  surveyId: string;
+  points: Point3D[];
+}
+
 interface LayerDefinition {
   id: string;
   name: string;
@@ -49,10 +61,14 @@ interface DataContextType {
   updateFeature: (id: number, updates: Partial<Feature["properties"] & { geometry: any }>) => Promise<void>;
   exportFeatures: (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string; filter?: (feature: Feature) => boolean }) => void;
 
-  // ✅ Penanda perubahan data
   dataVersion: number;
   surveyListVersion: number;
-  refreshSurveyList: () => void; // 🔥 Baru: khusus untuk SidebarRight
+  refreshSurveyList: () => void;
+
+  // 🔼 3D Data
+  current3DData: Survey3DData | null;
+  setCurrent3DData: Dispatch<SetStateAction<Survey3DData | null>>;
+  fetchSurvey3DData: (surveyId: string) => Promise<void>;
 }
 
 // === Buat Context ===
@@ -90,9 +106,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [errorLayerGroups, setErrorLayerGroups] = useState<string | null>(null);
   const [riverLine, setRiverLine] = useState<Feature<LineString> | null>(null);
 
-  // ✅ Tambah dataVersion untuk trigger re-fetch
+  // ✅ Penanda perubahan data
   const [dataVersion, setDataVersion] = useState(0);
-  const [surveyListVersion, setSurveyListVersion] = useState(0); // 🔥 Baru
+  const [surveyListVersion, setSurveyListVersion] = useState(0);
+
+  // 🔼 State 3D
+  const [current3DData, setCurrent3DData] = useState<Survey3DData | null>(null);
 
   // --- Load visibility dari localStorage ---
   useEffect(() => {
@@ -119,7 +138,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [layerVisibility]);
 
-  // --- Sinkronisasi echosounderData ke localStorage saat berubah ---
+  // --- Sinkronisasi echosounderData ke localStorage ---
   useEffect(() => {
     if (Array.isArray(echosounderData)) {
       try {
@@ -454,7 +473,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshSurveyList = () => {
-    setSurveyListVersion((v) => v + 1); // 🔥 Picu refetch di SidebarRight
+    setSurveyListVersion((v) => v + 1);
   };
 
   const refreshLayers = () => loadLayers();
@@ -522,6 +541,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // 🔥 AMBIL DATA 3D
+  const fetchSurvey3DData = async (surveyId: string) => {
+    console.log("🔧 fetchSurvey3DData dipanggil untuk:", surveyId);
+
+    try {
+      const response = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          query: `
+            query SamplingPointsBySurveyId($surveyId: String!) {
+              samplingPointsBySurveyId(surveyId: $surveyId) {
+                id
+                geometry
+                meta
+              }
+            }
+          `,
+          variables: { surveyId },
+        }),
+      });
+
+      const result = await response.json();
+      if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(", "));
+
+      const points = result.data.samplingPointsBySurveyId;
+
+      if (!points || points.length === 0) {
+        setCurrent3DData(null);
+        console.log("❌ Tidak ada titik untuk survey:", surveyId);
+        return;
+      }
+
+      const processedPoints: Point3D[] = points.map((p: any) => {
+        const meta = p.meta || {};
+        return {
+          x: meta.distance_m || 0,
+          y: meta.offset_m || 0,
+          z: meta.kedalaman || meta.depth_value || 0,
+        };
+      });
+
+      setCurrent3DData({
+        surveyId,
+        points: processedPoints,
+      });
+
+      console.log("✅ current3DData diset:", { surveyId, pointCount: processedPoints.length });
+    } catch (err: any) {
+      console.error("❌ Gagal ambil data 3D:", err);
+      setCurrent3DData(null);
+    }
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -547,8 +620,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateFeature,
         exportFeatures,
         dataVersion,
-        surveyListVersion, // 🔥 Tambahkan
-        refreshSurveyList, // 🔥 Tambahkan
+        surveyListVersion,
+        refreshSurveyList,
+        current3DData,
+        setCurrent3DData,
+        fetchSurvey3DData, // ✅ PASTI ADA
       }}
     >
       {children}

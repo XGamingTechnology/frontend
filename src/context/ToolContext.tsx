@@ -5,26 +5,20 @@ import { createContext, useContext, useState, ReactNode } from "react";
 import * as L from "leaflet";
 import type { Feature, Geometry, GeoJsonProperties } from "geojson";
 
-// --- Tipe Tool: Perjelas makna tiap tool ---
-export type Tool =
-  | "toponimi"
-  | "rute"
-  | "echosounder"
-  | "simulasi" // Menu utama simulasi
-  | "drawline" // Generic draw line
-  | "drawline-transek" // Khusus transek sungai
-  | "drawpolygon"
-  | "drawpolygon-transek"
-  | null;
+// --- Tipe Tool ---
+export type Tool = "toponimi" | "rute" | "echosounder" | "simulasi" | "drawline" | "drawline-transek" | "drawpolygon" | "drawpolygon-transek" | null;
 
 // --- Tipe Mode Survei ---
 type SurveyMode = "line" | "polygon" | null;
 
 // --- Interface Context ---
 interface ToolContextType {
-  // --- STATE UTAMA ---
+  // --- TOOL & MODE ---
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
+
+  surveyMode: SurveyMode;
+  setSurveyMode: (mode: SurveyMode) => void;
 
   // --- FORM & INPUT ---
   showToponimiForm: boolean;
@@ -36,63 +30,50 @@ interface ToolContextType {
   routePoints: L.LatLng[];
   setRoutePoints: (value: L.LatLng[]) => void;
 
-  // --- SURVEY MODE (untuk bantu panel tahu konteks) ---
-  surveyMode: SurveyMode;
-  setSurveyMode: (mode: SurveyMode) => void;
-
-  // --- SELEKSI (untuk seleksi sementara di UI) ---
+  // --- SELEKSI ---
   selectedFeatures: Feature<Geometry, GeoJsonProperties>[];
   setSelectedFeatures: (features: Feature<Geometry, GeoJsonProperties>[]) => void;
 
-  // --- UI ---
+  // --- UI PANEL ---
   showSidebarRight: boolean;
-  setShowSidebarRight: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowSidebarRight: (value: boolean) => void;
 
-  // --- 3D PANEL (untuk visualisasi transek) ---
+  // --- 3D PANEL (UI Control Saja) ---
   show3DPanel: boolean;
   setShow3DPanel: (show: boolean) => void;
-  surveyIdFor3D: string | null;
-  setSurveyIdFor3D: (id: string | null) => void;
 }
 
 const ToolContext = createContext<ToolContextType | undefined>(undefined);
 
 export function ToolProvider({ children }: { children: ReactNode }) {
   const [activeTool, setActiveTool] = useState<Tool>(null);
+  const [surveyMode, setSurveyMode] = useState<SurveyMode>(null);
   const [showToponimiForm, setShowToponimiForm] = useState(false);
   const [formLatLng, setFormLatLng] = useState<L.LatLng | null>(null);
   const [routePoints, setRoutePoints] = useState<L.LatLng[]>([]);
-  const [surveyMode, setSurveyMode] = useState<SurveyMode>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<Feature<Geometry, GeoJsonProperties>[]>([]);
   const [showSidebarRight, setShowSidebarRight] = useState(false);
-
-  // --- STATE UNTUK 3D PANEL ---
-  const [show3DPanel, setShow3DPanel] = useState(false);
-  const [surveyIdFor3D, setSurveyIdFor3D] = useState<string | null>(null);
+  const [show3DPanel, setShow3DPanel] = useState(false); // ✅ Cukup kontrol tampil/saja
 
   return (
     <ToolContext.Provider
       value={{
         activeTool,
         setActiveTool,
+        surveyMode,
+        setSurveyMode,
         showToponimiForm,
         setShowToponimiForm,
         formLatLng,
         setFormLatLng,
         routePoints,
         setRoutePoints,
-        surveyMode,
-        setSurveyMode,
         selectedFeatures,
         setSelectedFeatures,
         showSidebarRight,
         setShowSidebarRight,
-
-        // --- EXPORT STATE 3D ---
         show3DPanel,
         setShow3DPanel,
-        surveyIdFor3D,
-        setSurveyIdFor3D,
       }}
     >
       {children}

@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Line } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler, ChartOptions } from "chart.js";
 import { useData } from "@/context/DataContext";
+import { useTool } from "@/context/ToolContext"; // ✅ Tambah ini
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -38,7 +39,9 @@ export default function SidebarRight() {
   const [loadingPoints, setLoadingPoints] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { dataVersion, surveyListVersion } = useData(); // gunakan surveyListVersion
+  const { dataVersion, surveyListVersion, fetchSurvey3DData } = useData(); // ✅ Ambil fetchSurvey3DData
+  const { setShow3DPanel } = useTool(); // ✅ Untuk buka panel
+
   const itemsPerPage = 5;
 
   // --- Helper: Ambil token ---
@@ -66,7 +69,7 @@ export default function SidebarRight() {
     }
   }, [activeTab, surveyListVersion]);
 
-  // === 2. Tab "Simulasi": Ambil dari GraphQL (seperti sebelumnya) ===
+  // === 2. Tab "Simulasi": Ambil dari GraphQL ===
   useEffect(() => {
     if (activeTab === "simulated") {
       const fetchSurveyGroups = async () => {
@@ -251,6 +254,12 @@ export default function SidebarRight() {
   const totalPages = Math.ceil(filteredSurveyGroups.length / itemsPerPage);
   const currentSurveys = filteredSurveyGroups.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  // === 🔥 BUKA 3D PANEL ===
+  const handleOpen3D = async (surveyId: string) => {
+    await fetchSurvey3DData(surveyId); // → isi current3DData
+    setShow3DPanel(true); // → tampilkan modal
+  };
+
   // === Render UI ===
   return (
     <div className="p-4 w-full space-y-6 bg-gradient-to-br from-slate-50 to-white rounded-xl shadow-lg h-full overflow-y-auto border border-slate-200">
@@ -295,6 +304,7 @@ export default function SidebarRight() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Survey ID</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tanggal</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Titik</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -311,6 +321,11 @@ export default function SidebarRight() {
                       <td className="px-4 py-3 font-mono text-sm text-slate-800">SURVEY...{survey.surveyId.slice(-6)}</td>
                       <td className="px-4 py-3 text-sm text-slate-500">{survey.date}</td>
                       <td className="px-4 py-3 text-sm text-slate-500">{allData[survey.surveyId]?.length || 0}</td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => handleOpen3D(survey.surveyId)} className="text-xs px-2 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded hover:from-purple-600 hover:to-blue-600 transition">
+                          3D 🚀
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

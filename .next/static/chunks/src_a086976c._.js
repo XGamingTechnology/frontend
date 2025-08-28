@@ -497,9 +497,11 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$chartjs$2d$2$2f$dist$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/react-chartjs-2/dist/index.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/chart.js/dist/chart.js [app-client] (ecmascript) <locals>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/ToolContext.tsx [app-client] (ecmascript)"); // ✅ Tambah ini
 ;
 var _s = __turbopack_context__.k.signature();
 "use client";
+;
 ;
 ;
 ;
@@ -514,7 +516,8 @@ function SidebarRight() {
     const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(true);
     const [loadingPoints, setLoadingPoints] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [currentPage, setCurrentPage] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(1);
-    const { dataVersion, surveyListVersion } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])(); // gunakan surveyListVersion
+    const { dataVersion, surveyListVersion, fetchSurvey3DData } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])(); // ✅ Ambil fetchSurvey3DData
+    const { setShow3DPanel } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useTool"])(); // ✅ Untuk buka panel
     const itemsPerPage = 5;
     // --- Helper: Ambil token ---
     const getAuthHeaders = ()=>{
@@ -546,7 +549,7 @@ function SidebarRight() {
         activeTab,
         surveyListVersion
     ]);
-    // === 2. Tab "Simulasi": Ambil dari GraphQL (seperti sebelumnya) ===
+    // === 2. Tab "Simulasi": Ambil dari GraphQL ===
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "SidebarRight.useEffect": ()=>{
             if (activeTab === "simulated") {
@@ -791,6 +794,11 @@ function SidebarRight() {
     ]);
     const totalPages = Math.ceil(filteredSurveyGroups.length / itemsPerPage);
     const currentSurveys = filteredSurveyGroups.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    // === 🔥 BUKA 3D PANEL ===
+    const handleOpen3D = async (surveyId)=>{
+        await fetchSurvey3DData(surveyId); // → isi current3DData
+        setShow3DPanel(true); // → tampilkan modal
+    };
     // === Render UI ===
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "p-4 w-full space-y-6 bg-gradient-to-br from-slate-50 to-white rounded-xl shadow-lg h-full overflow-y-auto border border-slate-200",
@@ -806,14 +814,14 @@ function SidebarRight() {
                                 children: "📊"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                lineNumber: 260,
+                                lineNumber: 269,
                                 columnNumber: 11
                             }, this),
                             "Perbandingan Penampang Transek"
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 259,
+                        lineNumber: 268,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -825,7 +833,7 @@ function SidebarRight() {
                                 children: "📥 Data Lapangan"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                lineNumber: 264,
+                                lineNumber: 273,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -834,19 +842,19 @@ function SidebarRight() {
                                 children: "🖌️ Simulasi"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                lineNumber: 267,
+                                lineNumber: 276,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 263,
+                        lineNumber: 272,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/SidebarRight.tsx",
-                lineNumber: 258,
+                lineNumber: 267,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -861,7 +869,7 @@ function SidebarRight() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 275,
+                        lineNumber: 284,
                         columnNumber: 9
                     }, this),
                     loading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -869,14 +877,14 @@ function SidebarRight() {
                         children: "Memuat daftar..."
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 278,
+                        lineNumber: 287,
                         columnNumber: 11
                     }, this) : filteredSurveyGroups.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                         className: "text-sm text-slate-400 italic",
                         children: activeTab === "field" ? "Belum ada data upload." : "Tidak ada data simulasi."
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 280,
+                        lineNumber: 289,
                         columnNumber: 11
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
                         children: [
@@ -898,25 +906,9 @@ function SidebarRight() {
                                                             className: "rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/SidebarRight.tsx",
-                                                            lineNumber: 288,
+                                                            lineNumber: 297,
                                                             columnNumber: 23
                                                         }, this)
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/components/SidebarRight.tsx",
-                                                        lineNumber: 287,
-                                                        columnNumber: 21
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
-                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
-                                                        children: "Survey ID"
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/components/SidebarRight.tsx",
-                                                        lineNumber: 295,
-                                                        columnNumber: 21
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
-                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
-                                                        children: "Tanggal"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/SidebarRight.tsx",
                                                         lineNumber: 296,
@@ -924,21 +916,45 @@ function SidebarRight() {
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
                                                         className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
+                                                        children: "Survey ID"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                                        lineNumber: 304,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
+                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
+                                                        children: "Tanggal"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                                        lineNumber: 305,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
+                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
                                                         children: "Titik"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/SidebarRight.tsx",
-                                                        lineNumber: 297,
+                                                        lineNumber: 306,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
+                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
+                                                        children: "Aksi"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                                        lineNumber: 307,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                                lineNumber: 286,
+                                                lineNumber: 295,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/SidebarRight.tsx",
-                                            lineNumber: 285,
+                                            lineNumber: 294,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("tbody", {
@@ -958,12 +974,12 @@ function SidebarRight() {
                                                                 className: "rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                                                lineNumber: 304,
+                                                                lineNumber: 314,
                                                                 columnNumber: 25
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/SidebarRight.tsx",
-                                                            lineNumber: 303,
+                                                            lineNumber: 313,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -974,7 +990,7 @@ function SidebarRight() {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/components/SidebarRight.tsx",
-                                                            lineNumber: 311,
+                                                            lineNumber: 321,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -982,7 +998,7 @@ function SidebarRight() {
                                                             children: survey.date
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/SidebarRight.tsx",
-                                                            lineNumber: 312,
+                                                            lineNumber: 322,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -990,29 +1006,45 @@ function SidebarRight() {
                                                             children: allData[survey.surveyId]?.length || 0
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/SidebarRight.tsx",
-                                                            lineNumber: 313,
+                                                            lineNumber: 323,
+                                                            columnNumber: 23
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
+                                                            className: "px-4 py-3",
+                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                                                onClick: ()=>handleOpen3D(survey.surveyId),
+                                                                className: "text-xs px-2 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded hover:from-purple-600 hover:to-blue-600 transition",
+                                                                children: "3D 🚀"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                                                lineNumber: 325,
+                                                                columnNumber: 25
+                                                            }, this)
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/components/SidebarRight.tsx",
+                                                            lineNumber: 324,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, survey.surveyId, true, {
                                                     fileName: "[project]/src/components/SidebarRight.tsx",
-                                                    lineNumber: 302,
+                                                    lineNumber: 312,
                                                     columnNumber: 21
                                                 }, this))
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/SidebarRight.tsx",
-                                            lineNumber: 300,
+                                            lineNumber: 310,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/SidebarRight.tsx",
-                                    lineNumber: 284,
+                                    lineNumber: 293,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                lineNumber: 283,
+                                lineNumber: 292,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1026,7 +1058,7 @@ function SidebarRight() {
                                                 children: currentSurveys.length
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                                lineNumber: 323,
+                                                lineNumber: 338,
                                                 columnNumber: 29
                                             }, this),
                                             " dari ",
@@ -1035,13 +1067,13 @@ function SidebarRight() {
                                                 children: filteredSurveyGroups.length
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                                lineNumber: 323,
+                                                lineNumber: 338,
                                                 columnNumber: 95
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/SidebarRight.tsx",
-                                        lineNumber: 322,
+                                        lineNumber: 337,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1054,7 +1086,7 @@ function SidebarRight() {
                                                 children: "Previous"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                                lineNumber: 326,
+                                                lineNumber: 341,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1065,7 +1097,7 @@ function SidebarRight() {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                                lineNumber: 333,
+                                                lineNumber: 348,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1075,19 +1107,19 @@ function SidebarRight() {
                                                 children: "Next"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                                lineNumber: 336,
+                                                lineNumber: 351,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/SidebarRight.tsx",
-                                        lineNumber: 325,
+                                        lineNumber: 340,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                lineNumber: 321,
+                                lineNumber: 336,
                                 columnNumber: 13
                             }, this)
                         ]
@@ -1097,13 +1129,13 @@ function SidebarRight() {
                         children: "Pilih survey untuk membandingkan profil dasar."
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 347,
+                        lineNumber: 362,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/SidebarRight.tsx",
-                lineNumber: 274,
+                lineNumber: 283,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1114,7 +1146,7 @@ function SidebarRight() {
                         children: "Grafik Profil Dasar"
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 352,
+                        lineNumber: 367,
                         columnNumber: 9
                     }, this),
                     loadingPoints ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1124,12 +1156,12 @@ function SidebarRight() {
                             children: "📊 Memuat data..."
                         }, void 0, false, {
                             fileName: "[project]/src/components/SidebarRight.tsx",
-                            lineNumber: 355,
+                            lineNumber: 370,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 354,
+                        lineNumber: 369,
                         columnNumber: 11
                     }, this) : selectedSurveyIds.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "flex items-center justify-center h-64 text-slate-400",
@@ -1142,25 +1174,25 @@ function SidebarRight() {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/SidebarRight.tsx",
-                            lineNumber: 359,
+                            lineNumber: 374,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 358,
+                        lineNumber: 373,
                         columnNumber: 11
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$chartjs$2d$2$2f$dist$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Line"], {
                         data: chartData,
                         options: chartOptions
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 362,
+                        lineNumber: 377,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/SidebarRight.tsx",
-                lineNumber: 351,
+                lineNumber: 366,
                 columnNumber: 7
             }, this),
             selectedSurveyIds.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1172,7 +1204,7 @@ function SidebarRight() {
                                 children: "✅ Survey Dipilih:"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                lineNumber: 370,
+                                lineNumber: 385,
                                 columnNumber: 13
                             }, this),
                             " ",
@@ -1180,7 +1212,7 @@ function SidebarRight() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 369,
+                        lineNumber: 384,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1189,7 +1221,7 @@ function SidebarRight() {
                                 children: "📊 Total Titik:"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                lineNumber: 373,
+                                lineNumber: 388,
                                 columnNumber: 13
                             }, this),
                             " ",
@@ -1197,7 +1229,7 @@ function SidebarRight() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 372,
+                        lineNumber: 387,
                         columnNumber: 11
                     }, this),
                     allDistances.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1206,7 +1238,7 @@ function SidebarRight() {
                                 children: "📏 Jarak Maks:"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/SidebarRight.tsx",
-                                lineNumber: 377,
+                                lineNumber: 392,
                                 columnNumber: 15
                             }, this),
                             " ",
@@ -1215,25 +1247,26 @@ function SidebarRight() {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 376,
+                        lineNumber: 391,
                         columnNumber: 13
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/SidebarRight.tsx",
-                lineNumber: 368,
+                lineNumber: 383,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/SidebarRight.tsx",
-        lineNumber: 256,
+        lineNumber: 265,
         columnNumber: 5
     }, this);
 }
-_s(SidebarRight, "/QzJJVNWbMcZmziE3zKgeqHRcS8=", false, function() {
+_s(SidebarRight, "6ZZCLERWK8dD3hsy0CL1BkeM7dI=", false, function() {
     return [
-        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"]
+        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"],
+        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useTool"]
     ];
 });
 _c = SidebarRight;
