@@ -2,9 +2,9 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import { Inter } from "next/font/google";
-import { ToolProvider } from "@/context/ToolContext"; // ✅ import ToolProvider
-import { DataProvider } from "@/context/DataContext"; // ✅ import DataProvider
-// ... impor lainnya jika ada
+import { ToolProvider } from "@/context/ToolContext";
+import { DataProvider } from "@/context/DataContext";
+import AuthCheck from "@/components/AuthCheck"; // ✅ Import komponen
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,8 +17,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className={`${inter.className} bg-gray-100 text-gray-900`}>
-        {/* Bungkus seluruh aplikasi dengan DataProvider */}
-        {/* Dan juga ToolProvider */}
+        {/* ✅ Taruh di sini sebagai komponen */}
+        <AuthCheck />
+
         <DataProvider>
           <ToolProvider>{children}</ToolProvider>
         </DataProvider>

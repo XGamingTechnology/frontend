@@ -1,9 +1,11 @@
 // src/context/DataContext.tsx
 "use client";
-import { createContext, useContext, useState, useEffect } from "react";
+
+import React, { createContext, useContext, useState, useEffect, Dispatch, SetStateAction } from "react";
 import type { FeatureCollection, Feature, LineString } from "geojson";
 
-interface EchosounderPoint {
+// === Tipe Data ===
+export interface EchosounderPoint {
   jarak: number;
   kedalaman: number;
 }
@@ -19,29 +21,41 @@ interface LayerDefinition {
 
 type LayerVisibilityState = Record<string, boolean>;
 
+// === Tipe Context ===
 interface DataContextType {
   features: FeatureCollection | null;
   loading: boolean;
   error: string | null;
   refreshData: () => void;
+
   layerDefinitions: LayerDefinition[] | null;
   layerVisibility: LayerVisibilityState;
   setLayerVisibility: (id: string, isVisible: boolean) => void;
   loadingLayers: boolean;
   errorLayers: string | null;
   refreshLayers: () => void;
+
   riverLine: Feature<LineString> | null;
   echosounderData: EchosounderPoint[];
+  setEchosounderData: Dispatch<SetStateAction<EchosounderPoint[]>>;
+
   layerGroups: any[] | null;
   loadingLayerGroups: boolean;
   errorLayerGroups: string | null;
   refreshLayerGroups: () => void;
+
   addFeature: (feature: Feature) => Promise<void>;
   deleteFeature: (id: number) => Promise<void>;
   updateFeature: (id: number, updates: Partial<Feature["properties"] & { geometry: any }>) => Promise<void>;
   exportFeatures: (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string; filter?: (feature: Feature) => boolean }) => void;
+
+  // ✅ Penanda perubahan data
+  dataVersion: number;
+  surveyListVersion: number;
+  refreshSurveyList: () => void; // 🔥 Baru: khusus untuk SidebarRight
 }
 
+// === Buat Context ===
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 // --- Helper: Ambil token dari localStorage ---
@@ -59,19 +73,26 @@ const getAuthHeaders = () => {
   };
 };
 
+// === Provider ===
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [features, setFeatures] = useState<FeatureCollection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [layerDefinitions, setLayerDefinitions] = useState<LayerDefinition[] | null>(null);
   const [layerVisibility, setLayerVisibilityState] = useState<LayerVisibilityState>({});
   const [loadingLayers, setLoadingLayers] = useState(true);
   const [errorLayers, setErrorLayers] = useState<string | null>(null);
-  const [echosounderData] = useState<EchosounderPoint[]>([]);
+
+  const [echosounderData, setEchosounderData] = useState<EchosounderPoint[]>([]);
   const [layerGroups, setLayerGroups] = useState<any[] | null>(null);
   const [loadingLayerGroups, setLoadingLayerGroups] = useState(true);
   const [errorLayerGroups, setErrorLayerGroups] = useState<string | null>(null);
   const [riverLine, setRiverLine] = useState<Feature<LineString> | null>(null);
+
+  // ✅ Tambah dataVersion untuk trigger re-fetch
+  const [dataVersion, setDataVersion] = useState(0);
+  const [surveyListVersion, setSurveyListVersion] = useState(0); // 🔥 Baru
 
   // --- Load visibility dari localStorage ---
   useEffect(() => {
@@ -97,6 +118,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   }, [layerVisibility]);
+
+  // --- Sinkronisasi echosounderData ke localStorage saat berubah ---
+  useEffect(() => {
+    if (Array.isArray(echosounderData)) {
+      try {
+        localStorage.setItem("echosounderData", JSON.stringify(echosounderData));
+      } catch (err) {
+        console.warn("Gagal simpan echosounderData ke localStorage:", err);
+      }
+    }
+  }, [echosounderData]);
 
   // --- Load semua data ---
   useEffect(() => {
@@ -156,7 +188,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })),
       };
 
-      // ✅ PASTIKAN REFERENSI BARU
       setFeatures({ ...geojson });
       updateRiverLineFromFeatures(geojson.features);
     } catch (err: any) {
@@ -185,12 +216,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let layersFromDB: LayerDefinition[] = result.data.layerDefinitions || [];
 
-      // ✅ Filter hanya layer yang dibutuhkan
       const requiredLayerTypes = ["toponimi_user", "valid_transect_line", "valid_sampling_point", "toponimi", "area_sungai", "batimetri"];
 
       layersFromDB = layersFromDB.filter((l) => requiredLayerTypes.includes(l.layerType));
 
-      // ✅ Tambahkan definisi lengkap
       const fullLayerDefinitions: LayerDefinition[] = [
         {
           id: "toponimi_user",
@@ -242,15 +271,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       ];
 
-      // ✅ Gabung dengan DB
       const merged = fullLayerDefinitions.map((def) => {
         const fromDB = layersFromDB.find((l) => l.id === def.id);
         return fromDB ? { ...def, ...fromDB } : def;
       });
 
-      setLayerDefinitions([...merged]); // ✅ referensi baru
+      setLayerDefinitions([...merged]);
 
-      // ✅ Set visibility default
       const defaultVisibility: LayerVisibilityState = {};
       merged.forEach((layer) => {
         defaultVisibility[layer.id] = true;
@@ -334,7 +361,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const result = await response.json();
       if (result.data?.createSpatialFeature) {
-        await refreshData(); // ✅ refreshData sudah benar
+        await refreshData();
       } else {
         throw new Error(result.errors?.[0]?.message || "Gagal menyimpan feature");
       }
@@ -344,7 +371,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- ✅ HAPUS FEATURE ---
+  // --- HAPUS FEATURE ---
   const deleteFeature = async (id: number) => {
     try {
       const response = await fetch("http://localhost:5000/graphql", {
@@ -376,7 +403,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- ✅ UPDATE FEATURE ---
+  // --- UPDATE FEATURE ---
   const updateFeature = async (id: number, updates: Partial<Feature["properties"] & { geometry: any }>) => {
     try {
       const { geometry, ...meta } = updates;
@@ -421,7 +448,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // --- Refresh functions ---
-  const refreshData = () => loadData();
+  const refreshData = () => {
+    loadData();
+    setDataVersion((v) => v + 1);
+  };
+
+  const refreshSurveyList = () => {
+    setSurveyListVersion((v) => v + 1); // 🔥 Picu refetch di SidebarRight
+  };
+
   const refreshLayers = () => loadLayers();
   const refreshLayerGroups = () => {
     setLoadingLayerGroups(true);
@@ -431,7 +466,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 500);
   };
 
-  // --- ✅ EXPORT FUNCTION ---
+  // --- EXPORT FUNCTION ---
   const exportFeatures = (options?: { layerType?: string; source?: string; format?: "geojson" | "csv"; filename?: string; filter?: (feature: Feature) => boolean }) => {
     const { layerType, source, format = "geojson", filename = "export", filter } = options || {};
 
@@ -461,8 +496,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const headers = ["ID", "Nama", "Deskripsi", "Layer", "Latitude", "Longitude", "Kategori", "Sumber"];
       const rows = filtered.map((f) => {
         const props = f.properties || {};
-        const [lng, lat] = f.geometry?.type === "Point" ? f.geometry.coordinates : ["-", "-"];
-        return [f.id || "-", props.name || "-", props.description || "-", props.layerType || "-", lat?.toFixed(6) || "-", lng?.toFixed(6) || "-", props.category || props.meta?.category || "-", props.source || "-"];
+        const coords = f.geometry?.type === "Point" ? f.geometry.coordinates : [null, null];
+        const lat = typeof coords[1] === "number" ? coords[1].toFixed(6) : "-";
+        const lng = typeof coords[0] === "number" ? coords[0].toFixed(6) : "-";
+        return [f.id || "-", props.name || "-", props.description || "-", props.layerType || "-", lat, lng, props.category || props.meta?.category || "-", props.source || "-"];
       });
       const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
       downloadFile(csv, `${filename}.csv`, "text/csv");
@@ -500,6 +537,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshLayers,
         riverLine,
         echosounderData,
+        setEchosounderData,
         layerGroups,
         loadingLayerGroups,
         errorLayerGroups,
@@ -508,6 +546,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteFeature,
         updateFeature,
         exportFeatures,
+        dataVersion,
+        surveyListVersion, // 🔥 Tambahkan
+        refreshSurveyList, // 🔥 Tambahkan
       }}
     >
       {children}
@@ -515,6 +556,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
+// === Hook: useData() ===
 export function useData() {
   const context = useContext(DataContext);
   if (!context) throw new Error("useData must be used within a DataProvider");

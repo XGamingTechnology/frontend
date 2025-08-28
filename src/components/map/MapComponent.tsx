@@ -11,7 +11,8 @@ import ToponimiPanel from "@/components/panels/ToponimiPanel";
 import SimulasiPanel from "@/components/panels/SimulasiPanel";
 import LineSurveyPanel from "@/components/panels/LineSurveyPanel";
 import PolygonSurveyPanel from "@/components/panels/PolygonSurveyPanel";
-import type { Feature } from "geojson";
+import type { Feature, FeatureCollection } from "geojson";
+import { getAuthHeaders, fetchWithAuth } from "@/lib/apiClient";
 
 // --- Cegah Leaflet mencari marker-icon.png dan marker-shadow.png ---
 import { Icon } from "leaflet";
@@ -26,21 +27,6 @@ const DefaultIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
-
-// --- Helper: Ambil token dari localStorage ---
-const getAuthToken = () => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("authToken");
-};
-
-// --- Helper: Tambah header otentikasi ---
-const getAuthHeaders = () => {
-  const token = getAuthToken();
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
 
 // --- Komponen: Simpan referensi map ke ref ---
 function MapRefSetter({ mapRef }: { mapRef: MutableRefObject<LeafletMap | null> }) {
@@ -66,9 +52,9 @@ function useSpatialFeatures(layerType?: string, source?: string) {
   const [features, setFeatures] = useState<Feature[]>([]);
 
   useEffect(() => {
-    if (!allFeatures) return;
+    if (!allFeatures?.features) return;
 
-    let filtered = allFeatures.features || [];
+    let filtered: Feature[] = allFeatures.features;
 
     if (layerType) {
       filtered = filtered.filter((f) => f.properties?.layerType === layerType);
@@ -83,6 +69,88 @@ function useSpatialFeatures(layerType?: string, source?: string) {
   return { features };
 }
 
+// --- Komponen: Tombol Cetak Peta dengan leaflet-image ---
+function PrintControl() {
+  const map = useMap();
+
+  const handlePrintMap = () => {
+    import("leaflet-image")
+      .then(({ default: leafletImage }) => {
+        console.log("🔄 Mulai ekspor peta...");
+
+        leafletImage(map, (err: any, canvas: HTMLCanvasElement) => {
+          if (err) {
+            console.error("❌ Gagal ambil gambar peta:", err);
+            alert("Gagal mengekspor peta. Coba lagi.");
+            return;
+          }
+
+          try {
+            import("jspdf").then(({ jsPDF }) => {
+              const pdf = new jsPDF({
+                orientation: "landscape",
+                unit: "mm",
+                format: "a4",
+              });
+
+              const imgData = canvas.toDataURL("image/png");
+              const imgWidth = 280;
+              const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+              pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+              pdf.setFontSize(16);
+              pdf.text("Peta Toponimi", 14, 20);
+              pdf.setFontSize(10);
+              pdf.text(`Dibuat: ${new Date().toLocaleString()}`, 14, 28);
+
+              pdf.save(`peta-toponimi-${Date.now()}.pdf`);
+              console.log("✅ PDF berhasil disimpan");
+            });
+          } catch (pdfErr) {
+            console.error("❌ Gagal generate PDF:", pdfErr);
+            alert("Gagal membuat PDF. Coba screenshot manual.");
+          }
+        });
+      })
+      .catch((err) => {
+        console.error("❌ Gagal load leaflet-image:", err);
+        alert("Modul cetak tidak tersedia. Coba refresh.");
+      });
+  };
+
+  return (
+    <div
+      className="leaflet-control leaflet-bar"
+      style={{
+        position: "absolute",
+        bottom: "40px",
+        left: "10px",
+        zIndex: 1000,
+        background: "#1e40af",
+        color: "white",
+        borderRadius: "4px",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+        padding: "6px 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        cursor: "pointer",
+      }}
+      onClick={handlePrintMap}
+    >
+      <span style={{ fontSize: "16px" }}>🖨️</span>
+      <span style={{ fontSize: "12px", fontWeight: "bold" }}>Cetak</span>
+    </div>
+  );
+}
+
+// --- GLOBAL: Tambahkan show3D ke window ---
+declare global {
+  interface Window {
+    show3D: (surveyId: string) => void;
+  }
+}
+
 export default function MapComponent({
   setLatLng,
   basemapType,
@@ -94,7 +162,6 @@ export default function MapComponent({
   mapRef: MutableRefObject<LeafletMap | null>;
   userLocation?: [number, number] | null;
 }) {
-  // ✅ Fix: Hapus spasi berlebih di URL tile
   const tileLayers: Record<string, string> = {
     osm: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -148,12 +215,11 @@ export default function MapComponent({
     const geojsonLine = {
       type: "LineString",
       coordinates: lineCoords,
-    };
+    } as const;
 
     try {
-      const response = await fetch("http://localhost:5000/graphql", {
+      const response = await fetchWithAuth("http://localhost:5000/graphql", {
         method: "POST",
-        headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
             mutation SaveRiverLineDraft($geom: JSON!) {
@@ -168,13 +234,11 @@ export default function MapComponent({
         }),
       });
 
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error("Server mengembalikan data tidak valid");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      const data = await response.json();
 
       if (data.errors) {
         throw new Error(data.errors[0].message || "Gagal simpan draft");
@@ -189,6 +253,7 @@ export default function MapComponent({
         throw new Error(data.data?.saveRiverLineDraft.message || "Gagal simpan draft");
       }
     } catch (err: any) {
+      console.error("❌ Gagal simpan draft:", err);
       alert(`❌ Gagal: ${err.message}`);
     }
   };
@@ -205,7 +270,7 @@ export default function MapComponent({
     const geojsonPolygon = {
       type: "Polygon",
       coordinates,
-    };
+    } as const;
 
     try {
       const response = await fetch("http://localhost:5000/graphql", {
@@ -313,14 +378,20 @@ export default function MapComponent({
     }
   };
 
-  // ✅ Inisialisasi fungsi global di useEffect
+  // ✅ Inisialisasi fungsi global: show3D
   useEffect(() => {
     (window as any).editFeature = editFeature;
     (window as any).deleteFeature = deleteFeatureWithConfirm;
 
+    // ✅ Tambahkan show3D untuk trigger 3D dari popup
+    (window as any).show3D = (surveyId: string) => {
+      document.dispatchEvent(new CustomEvent("open-3d-panel", { detail: { surveyId } }));
+    };
+
     return () => {
       delete (window as any).editFeature;
       delete (window as any).deleteFeature;
+      delete (window as any).show3D;
     };
   }, [editFeature, deleteFeatureWithConfirm]);
 
@@ -332,6 +403,9 @@ export default function MapComponent({
         <MapEvents />
         <MapRefSetter mapRef={mapRef} />
         {userLocation && <UserLocationMarker location={userLocation} />}
+
+        {/* --- TOMBOL CETAK DI PETA --- */}
+        <PrintControl />
 
         {/* --- RENDER 6 LAYER YANG DIMINTA --- */}
         {layerDefinitions
@@ -372,7 +446,7 @@ export default function MapComponent({
               return (
                 <GeoJSON
                   key={`valid-sampling-${features.length}`}
-                  data={{ type: "FeatureCollection", features }}
+                  data={{ type: "FeatureCollection", features } as FeatureCollection}
                   pointToLayer={(point, latlng) =>
                     L.circleMarker(latlng, {
                       radius: layer.meta?.radius || 6,
@@ -382,11 +456,18 @@ export default function MapComponent({
                     })
                   }
                   onEachFeature={(feature, layer) => {
+                    console.log("Processing feature:", feature); // 🔥 Debug
+
                     const props = feature.properties || {};
-                    const depth = props.kedalaman ?? props.depth_value ?? "-";
-                    const distance = props.distance_m ?? props.distance_from_start ?? "-";
-                    const transectId = props.transect_id || "Unknown";
-                    const surveyId = props.survey_id ? props.survey_id.slice(-8) : "-";
+                    const metadata = props.metadata || props; // fallback ke props jika metadata tidak ada
+
+                    const depth = metadata.kedalaman ?? metadata.depth_value ?? "-";
+                    const distance = metadata.distance_m ?? metadata.distance_from_start ?? "-";
+                    const transectId = metadata.transect_id || props.transect_id || "Unknown";
+                    const surveyId = metadata.survey_id || props.survey_id || "-";
+
+                    // 🔁 Pastikan id aman
+                    const featureId = feature.id || props.id || Math.random();
 
                     const popupContent = `
                       <div style="font-family: 'Segoe UI', sans-serif; line-height: 1.4; padding: 12px 16px; border-radius: 8px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 220px;">
@@ -395,14 +476,17 @@ export default function MapComponent({
                           <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:6px 0;color:#64748b;font-weight:500;">Transect</td><td style="padding:6px 0;text-align:right;font-weight:bold;">${transectId}</td></tr>
                           <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:6px 0;color:#64748b;font-weight:500;">Survey ID</td><td style="padding:6px 0;text-align:right;font-weight:bold;">${surveyId}</td></tr>
                           <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:6px 0;color:#64748b;font-weight:500;">Jarak</td><td style="padding:6px 0;text-align:right;font-weight:bold;">${distance} m</td></tr>
-                          <tr><td style="padding:6px 0;color:#64748b;font-weight:500;">Kedalaman</td><td style="padding:6px 0;text-align:right;font-weight:bold;color:${depth < 0 ? "#1e40af" : "#10b981"};">${depth} m</td></tr>
+                          <tr><td style="padding:6px 0;color:#64748b;font-weight:500;">Kedalaman</td><td style="padding:6px 0;text-align:right;font-weight:bold;color:${
+                            depth !== "-" && depth < 0 ? "#1e40af" : "#10b981"
+                          };">${depth} m</td></tr>
                         </table>
                         <div style="margin-top: 8px; display: flex; gap: 4px;">
-                          <button onclick="window.editFeature(${feature.id})" style="font-size:0.8em;padding:4px 8px;background:#10b981;color:white;border:none;border-radius:4px;cursor:pointer;">✏️ Edit</button>
-                          <button onclick="window.deleteFeature(${feature.id})" style="font-size:0.8em;padding:4px 8px;background:#ef4444;color:white;border:none;border-radius:4px;cursor-pointer;">🗑️ Hapus</button>
+                          <button onclick="window.editFeature('${featureId}')" style="font-size:0.8em;padding:4px 8px;background:#10b981;color:white;border:none;border-radius:4px;cursor:pointer;">✏️ Edit</button>
+                          <button onclick="window.deleteFeature('${featureId}')" style="font-size:0.8em;padding:4px 8px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;">🗑️ Hapus</button>
                         </div>
                       </div>
                     `;
+
                     layer.bindPopup(popupContent);
                   }}
                 />
@@ -414,9 +498,8 @@ export default function MapComponent({
               return (
                 <GeoJSON
                   key={`toponimi-user-${features.length}`}
-                  data={{ type: "FeatureCollection", features }}
+                  data={{ type: "FeatureCollection", features } as FeatureCollection}
                   pointToLayer={(point, latlng) => {
-                    // ✅ Ambil langsung dari properties.icon (hasil merge meta)
                     const iconFilename = point.properties?.icon;
                     const fallbackIcon = "/icons/Bendera_1.png";
                     const iconUrl = iconFilename ? `/icons/${iconFilename}` : fallbackIcon;
@@ -468,7 +551,7 @@ export default function MapComponent({
               return (
                 <GeoJSON
                   key={`toponimi-existing-${features.length}`}
-                  data={{ type: "FeatureCollection", features }}
+                  data={{ type: "FeatureCollection", features } as FeatureCollection}
                   pointToLayer={(point, latlng) => {
                     return L.marker(latlng, {
                       icon: L.icon({
@@ -500,7 +583,7 @@ export default function MapComponent({
             return (
               <GeoJSON
                 key={layer.id}
-                data={{ type: "FeatureCollection", features }}
+                data={{ type: "FeatureCollection", features } as FeatureCollection}
                 style={{
                   fillColor: layer.meta?.fillColor || "#0284c7",
                   color: layer.meta?.color || "#0284c7",

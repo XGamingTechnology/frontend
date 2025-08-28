@@ -19,26 +19,28 @@ var _s = __turbopack_context__.k.signature();
 function HeaderBar() {
     _s();
     const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"])();
-    const [userName, setUserName] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("Pengguna");
+    const [user, setUser] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "HeaderBar.useEffect": ()=>{
             const stored = localStorage.getItem("user");
             if (stored) {
                 try {
                     const parsed = JSON.parse(stored);
-                    // Gunakan fullName jika ada, fallback ke username, lalu ke "Pengguna"
-                    const displayName = parsed.fullName || parsed.username || "Pengguna";
-                    setUserName(displayName);
+                    setUser(parsed);
                 } catch (error) {
                     console.error("Gagal parsing user dari localStorage:", error);
-                    setUserName("Pengguna");
+                    localStorage.removeItem("user");
+                    localStorage.removeItem("authToken");
+                    router.push("/login");
                 }
             } else {
-            // Jika tidak ada user, redirect ke login (opsional)
-            // router.push("/login"); // aktifkan jika ingin wajib login
+                // Jika tidak ada user, redirect ke login
+                router.push("/login");
             }
         }
-    }["HeaderBar.useEffect"], []);
+    }["HeaderBar.useEffect"], [
+        router
+    ]);
     const handleLogout = ()=>{
         if (confirm("Yakin ingin logout?")) {
             // Hapus data autentikasi
@@ -50,6 +52,10 @@ function HeaderBar() {
             router.push("/login");
         }
     };
+    if (!user) {
+        return null; // Atau loading spinner
+    }
+    const displayName = user.fullName || user.username || "Pengguna";
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("header", {
         className: "flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3 shadow-sm",
         children: [
@@ -62,7 +68,7 @@ function HeaderBar() {
                         className: "h-8 w-8"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 56,
+                        lineNumber: 62,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -70,13 +76,13 @@ function HeaderBar() {
                         children: "Vision Traffic Suite"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 57,
+                        lineNumber: 63,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/HeaderBar.tsx",
-                lineNumber: 55,
+                lineNumber: 61,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -89,23 +95,45 @@ function HeaderBar() {
                         title: "Pengguna aktif"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 62,
+                        lineNumber: 68,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                         className: "text-slate-800 font-medium",
-                        children: userName
+                        children: displayName
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 63,
+                        lineNumber: 69,
                         columnNumber: 9
                     }, this),
+                    user.role === "admin" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "text-gray-300",
+                                children: "|"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/HeaderBar.tsx",
+                                lineNumber: 74,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                onClick: ()=>router.push("/admin"),
+                                className: "text-blue-600 hover:underline font-medium",
+                                title: "Masuk ke panel admin",
+                                children: "🛠️ Admin Panel"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/HeaderBar.tsx",
+                                lineNumber: 75,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                         className: "text-gray-300",
                         children: "|"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 64,
+                        lineNumber: 81,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -115,23 +143,23 @@ function HeaderBar() {
                         children: "Logout"
                     }, void 0, false, {
                         fileName: "[project]/src/components/HeaderBar.tsx",
-                        lineNumber: 65,
+                        lineNumber: 82,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/HeaderBar.tsx",
-                lineNumber: 61,
+                lineNumber: 67,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/HeaderBar.tsx",
-        lineNumber: 53,
+        lineNumber: 59,
         columnNumber: 5
     }, this);
 }
-_s(HeaderBar, "OZ+S9+fPwGQINZuIhgc/RtbdKlU=", false, function() {
+_s(HeaderBar, "C1U3W1/GLXpNOs2elmI/sE+Rt18=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"]
     ];
@@ -465,15 +493,10 @@ __turbopack_context__.s({
     "default": (()=>SidebarRight)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
-// 1. Impor useData dari DataContext
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-client] (ecmascript)");
-// 2. Impor library yang dibutuhkan untuk chart
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/chart.js/dist/chart.js [app-client] (ecmascript) <locals>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$chartjs$2d$2$2f$dist$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/react-chartjs-2/dist/index.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$shared$2f$lib$2f$app$2d$dynamic$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/shared/lib/app-dynamic.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$echarts$2d$gl$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/echarts-gl/index.js [app-client] (ecmascript)");
-;
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$chartjs$2d$2$2f$dist$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/react-chartjs-2/dist/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/chart.js/dist/chart.js [app-client] (ecmascript) <locals>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature();
 "use client";
@@ -481,47 +504,259 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 ;
-;
-;
-// 3. Daftarkan komponen ChartJS
-__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["Chart"].register(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["LineElement"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["PointElement"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["LinearScale"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["CategoryScale"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["Tooltip"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["Legend"]);
-// 4. Import ReactECharts secara dinamis untuk menghindari masalah SSR
-const ReactECharts = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$shared$2f$lib$2f$app$2d$dynamic$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"])(()=>__turbopack_context__.r("[project]/node_modules/echarts-for-react/esm/index.js [app-client] (ecmascript, next/dynamic entry, async loader)")(__turbopack_context__.i), {
-    loadableGenerated: {
-        modules: [
-            "[project]/node_modules/echarts-for-react/esm/index.js [app-client] (ecmascript, next/dynamic entry)"
-        ]
-    },
-    ssr: false
-});
-_c = ReactECharts;
+__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["Chart"].register(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["CategoryScale"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["LinearScale"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["PointElement"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["LineElement"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["Tooltip"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["Legend"], __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$chart$2e$js$2f$dist$2f$chart$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["Filler"]);
 function SidebarRight() {
     _s();
-    // 5. Dapatkan echosounderData dari DataContext
-    const { echosounderData } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])();
-    // 6. Siapkan data dan opsi untuk chart 2D
-    const data = {
-        // 7. Pastikan echosounderData adalah array sebelum menggunakan .map
-        labels: Array.isArray(echosounderData) ? echosounderData.map((d)=>d.jarak) : [],
-        datasets: [
-            {
-                label: "Kedalaman (m)",
-                // 8. Pastikan echosounderData adalah array sebelum menggunakan .map
-                data: Array.isArray(echosounderData) ? echosounderData.map((d)=>d.kedalaman) : [],
-                fill: true,
-                backgroundColor: "rgba(59,130,246,0.2)",
-                borderColor: "rgba(59,130,246,1)",
-                tension: 0.4,
-                pointRadius: 3,
-                pointBackgroundColor: "rgba(59,130,246,1)"
-            }
-        ]
+    const [activeTab, setActiveTab] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("field");
+    const [surveyGroups, setSurveyGroups] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [selectedSurveyIds, setSelectedSurveyIds] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [allData, setAllData] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({});
+    const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(true);
+    const [loadingPoints, setLoadingPoints] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [currentPage, setCurrentPage] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(1);
+    const { dataVersion, surveyListVersion } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])(); // gunakan surveyListVersion
+    const itemsPerPage = 5;
+    // --- Helper: Ambil token ---
+    const getAuthHeaders = ()=>{
+        const token = localStorage.getItem("authToken");
+        return {
+            "Content-Type": "application/json",
+            ...token ? {
+                Authorization: `Bearer ${token}`
+            } : {}
+        };
     };
-    const options = {
+    // === 1. Tab "Data Lapangan": Ambil dari localStorage ===
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "SidebarRight.useEffect": ()=>{
+            if (activeTab === "field") {
+                try {
+                    const saved = localStorage.getItem("fieldSurveys");
+                    const surveys = saved ? JSON.parse(saved) : [];
+                    setSurveyGroups(surveys);
+                } catch (err) {
+                    console.error("❌ Gagal baca fieldSurveys dari localStorage:", err);
+                    setSurveyGroups([]);
+                } finally{
+                    setLoading(false);
+                }
+            }
+        }
+    }["SidebarRight.useEffect"], [
+        activeTab,
+        surveyListVersion
+    ]);
+    // === 2. Tab "Simulasi": Ambil dari GraphQL (seperti sebelumnya) ===
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "SidebarRight.useEffect": ()=>{
+            if (activeTab === "simulated") {
+                const fetchSurveyGroups = {
+                    "SidebarRight.useEffect.fetchSurveyGroups": async ()=>{
+                        setLoading(true);
+                        try {
+                            const res = await fetch("http://localhost:5000/graphql", {
+                                method: "POST",
+                                headers: getAuthHeaders(),
+                                body: JSON.stringify({
+                                    query: `
+                query GetSimulatedSurveys {
+                  spatialFeatures(layerType: "valid_sampling_point") {
+                    meta
+                    source
+                  }
+                }
+              `
+                                })
+                            });
+                            const data = await res.json();
+                            if (data.errors) throw new Error(data.errors[0].message);
+                            const features = data.data?.spatialFeatures || [];
+                            const grouped = {};
+                            features.forEach({
+                                "SidebarRight.useEffect.fetchSurveyGroups": (item)=>{
+                                    const meta = item.meta || {};
+                                    const surveyId = meta.survey_id || meta.surveyId || meta.SURVEY_ID || item.surveyId;
+                                    if (!surveyId || item.source === "import") return;
+                                    if (!grouped[surveyId]) {
+                                        grouped[surveyId] = {
+                                            surveyId,
+                                            date: meta.survey_date || "N/A",
+                                            transects: [],
+                                            source: item.source || "drawing"
+                                        };
+                                    }
+                                }
+                            }["SidebarRight.useEffect.fetchSurveyGroups"]);
+                            setSurveyGroups(Object.values(grouped));
+                        } catch (err) {
+                            console.error("❌ Gagal muat simulasi:", err);
+                            alert("Gagal muat data simulasi.");
+                            setSurveyGroups([]);
+                        } finally{
+                            setLoading(false);
+                        }
+                    }
+                }["SidebarRight.useEffect.fetchSurveyGroups"];
+                fetchSurveyGroups();
+            }
+        }
+    }["SidebarRight.useEffect"], [
+        activeTab,
+        dataVersion
+    ]);
+    // --- Reset saat ganti tab ---
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "SidebarRight.useEffect": ()=>{
+            setSelectedSurveyIds([]);
+            setCurrentPage(1);
+        }
+    }["SidebarRight.useEffect"], [
+        activeTab
+    ]);
+    // --- Ambil titik untuk chart ---
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "SidebarRight.useEffect": ()=>{
+            const fetchAllPoints = {
+                "SidebarRight.useEffect.fetchAllPoints": async ()=>{
+                    if (selectedSurveyIds.length === 0) {
+                        setAllData({});
+                        return;
+                    }
+                    setLoadingPoints(true);
+                    const newData = {};
+                    try {
+                        for (const surveyId of selectedSurveyIds){
+                            const survey = surveyGroups.find({
+                                "SidebarRight.useEffect.fetchAllPoints.survey": (s)=>s.surveyId === surveyId
+                            }["SidebarRight.useEffect.fetchAllPoints.survey"]);
+                            if (!survey) continue;
+                            const isFieldData = survey.source === "import";
+                            const query = isFieldData ? `query GetFieldPoints($surveyId: String!) { fieldSurveyPointsBySurveyId(surveyId: $surveyId) { meta } }` : `query GetSimulatedPoints($surveyId: String!) { samplingPointsBySurveyId(surveyId: $surveyId) { meta } }`;
+                            const res = await fetch("http://localhost:5000/graphql", {
+                                method: "POST",
+                                headers: getAuthHeaders(),
+                                body: JSON.stringify({
+                                    query,
+                                    variables: {
+                                        surveyId
+                                    }
+                                })
+                            });
+                            const result = await res.json();
+                            if (result.errors) continue;
+                            const points = result.data?.[Object.keys(result.data)[0]] || [];
+                            const processedPoints = points.map({
+                                "SidebarRight.useEffect.fetchAllPoints.processedPoints": (p)=>{
+                                    const meta = p.meta || {};
+                                    const depth = parseFloat(meta.kedalaman ?? meta.depth ?? meta.depth_value ?? 0);
+                                    const distance = parseFloat(meta.jarak ?? meta.distance_m ?? meta.distance ?? 0);
+                                    return isNaN(depth) || isNaN(distance) ? null : {
+                                        surveyId,
+                                        distance: Math.round(distance * 100) / 100,
+                                        depth: Math.abs(depth)
+                                    };
+                                }
+                            }["SidebarRight.useEffect.fetchAllPoints.processedPoints"]).filter(Boolean);
+                            processedPoints.sort({
+                                "SidebarRight.useEffect.fetchAllPoints": (a, b)=>a.distance - b.distance
+                            }["SidebarRight.useEffect.fetchAllPoints"]);
+                            newData[surveyId] = processedPoints;
+                        }
+                        setAllData(newData);
+                    } catch (err) {
+                        console.error("❌ Gagal muat titik:", err);
+                    } finally{
+                        setLoadingPoints(false);
+                    }
+                }
+            }["SidebarRight.useEffect.fetchAllPoints"];
+            fetchAllPoints();
+        }
+    }["SidebarRight.useEffect"], [
+        selectedSurveyIds,
+        surveyGroups
+    ]);
+    // --- Sumbu X ---
+    const allDistances = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
+        "SidebarRight.useMemo[allDistances]": ()=>{
+            const distances = new Set();
+            Object.values(allData).forEach({
+                "SidebarRight.useMemo[allDistances]": (points)=>points.forEach({
+                        "SidebarRight.useMemo[allDistances]": (p)=>distances.add(p.distance)
+                    }["SidebarRight.useMemo[allDistances]"])
+            }["SidebarRight.useMemo[allDistances]"]);
+            return Array.from(distances).sort({
+                "SidebarRight.useMemo[allDistances]": (a, b)=>a - b
+            }["SidebarRight.useMemo[allDistances]"]);
+        }
+    }["SidebarRight.useMemo[allDistances]"], [
+        allData
+    ]);
+    // --- Data Chart ---
+    const chartData = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
+        "SidebarRight.useMemo[chartData]": ()=>{
+            const datasets = selectedSurveyIds.map({
+                "SidebarRight.useMemo[chartData].datasets": (surveyId, idx)=>{
+                    const points = allData[surveyId] || [];
+                    const colorHue = idx * 130 % 360;
+                    const borderColor = `hsl(${colorHue}, 70%, 50%)`;
+                    const backgroundColor = `hsl(${colorHue}, 70%, 50%, 0.2)`;
+                    const data = allDistances.map({
+                        "SidebarRight.useMemo[chartData].datasets.data": (dist)=>{
+                            const point = points.find({
+                                "SidebarRight.useMemo[chartData].datasets.data.point": (p)=>Math.abs(p.distance - dist) < 0.5
+                            }["SidebarRight.useMemo[chartData].datasets.data.point"]);
+                            return point ? point.depth : null;
+                        }
+                    }["SidebarRight.useMemo[chartData].datasets.data"]);
+                    return {
+                        label: `Survey ${surveyId.slice(-6)}`,
+                        data,
+                        borderColor,
+                        backgroundColor,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4
+                    };
+                }
+            }["SidebarRight.useMemo[chartData].datasets"]);
+            return {
+                labels: allDistances.map({
+                    "SidebarRight.useMemo[chartData]": (d)=>d.toFixed(0)
+                }["SidebarRight.useMemo[chartData]"]),
+                datasets
+            };
+        }
+    }["SidebarRight.useMemo[chartData]"], [
+        allDistances,
+        allData,
+        selectedSurveyIds
+    ]);
+    // --- Opsi Chart ---
+    const chartOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
-                display: true
+                position: "top",
+                labels: {
+                    usePointStyle: true,
+                    boxWidth: 6,
+                    padding: 12,
+                    font: {
+                        size: 11
+                    }
+                }
+            },
+            tooltip: {
+                mode: "index",
+                intersect: false,
+                backgroundColor: "rgba(0,0,0,0.8)",
+                titleColor: "#fff",
+                bodyColor: "#ccc",
+                callbacks: {
+                    label: (ctx)=>`${ctx.dataset?.label}: ${ctx.parsed.y} m`
+                }
             }
         },
         scales: {
@@ -530,201 +765,480 @@ function SidebarRight() {
                 title: {
                     display: true,
                     text: "Kedalaman (m)"
+                },
+                ticks: {
+                    stepSize: 1
                 }
             },
             x: {
                 title: {
                     display: true,
-                    text: "Jarak (m)"
+                    text: "Jarak dari Awal Transek (m)"
                 }
             }
         }
     };
-    // 9. Siapkan opsi untuk chart 3D menggunakan useMemo untuk optimasi
-    const option3D = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
-        "SidebarRight.useMemo[option3D]": ()=>{
-            // 10. Pastikan echosounderData adalah array dan tidak kosong
-            if (!Array.isArray(echosounderData) || echosounderData.length === 0) {
-                return {}; // Kembalikan objek kosong jika tidak ada data
-            }
-            const xLen = echosounderData.length;
-            const yLen = 5;
-            // const stepY = 1; // Tidak digunakan dalam logika saat ini
-            const surfaceData = [];
-            for(let i = 0; i < xLen; i++){
-                const row = [];
-                for(let j = 0; j < yLen; j++){
-                    // 11. Tambahkan variasi halus pada data Z untuk visualisasi 3D yang lebih menarik
-                    row.push(echosounderData[i].kedalaman + Math.sin(j * 0.5) * 0.1);
-                }
-                surfaceData.push(row);
-            }
-            // 12. Kembalikan konfigurasi chart 3D
-            return {
-                tooltip: {},
-                visualMap: {
-                    show: true,
-                    // 13. Hitung min/max dengan aman
-                    min: Math.min(...echosounderData.map({
-                        "SidebarRight.useMemo[option3D]": (d)=>d.kedalaman
-                    }["SidebarRight.useMemo[option3D]"])),
-                    max: Math.max(...echosounderData.map({
-                        "SidebarRight.useMemo[option3D]": (d)=>d.kedalaman
-                    }["SidebarRight.useMemo[option3D]"])),
-                    inRange: {
-                        color: [
-                            "#4575b4",
-                            "#91bfdb",
-                            "#e0f3f8",
-                            "#ffffbf",
-                            "#fee090",
-                            "#fc8d59",
-                            "#d73027"
-                        ]
-                    },
-                    calculable: true,
-                    orient: "vertical",
-                    left: "left",
-                    bottom: "10%"
-                },
-                xAxis3D: {
-                    type: "category",
-                    name: "Jarak",
-                    // 14. Format data jarak untuk sumbu X
-                    data: echosounderData.map({
-                        "SidebarRight.useMemo[option3D]": (d)=>d.jarak.toFixed(1)
-                    }["SidebarRight.useMemo[option3D]"])
-                },
-                yAxis3D: {
-                    type: "category",
-                    name: "Offset",
-                    // 15. Buat label untuk sumbu Y
-                    data: Array.from({
-                        length: yLen
-                    }, {
-                        "SidebarRight.useMemo[option3D]": (_, j)=>`W${j}`
-                    }["SidebarRight.useMemo[option3D]"])
-                },
-                zAxis3D: {
-                    type: "value",
-                    name: "Kedalaman (m)"
-                },
-                grid3D: {
-                    boxWidth: 100,
-                    boxDepth: 30,
-                    viewControl: {
-                        autoRotate: true,
-                        projection: "perspective"
-                    },
-                    light: {
-                        main: {
-                            intensity: 1.2,
-                            shadow: true
-                        },
-                        ambient: {
-                            intensity: 0.3
-                        }
-                    }
-                },
-                series: [
-                    {
-                        type: "surface",
-                        wireframe: {
-                            show: false
-                        },
-                        shading: "color",
-                        data: surfaceData
-                    }
-                ]
-            };
+    // === Filter dan Pagination ===
+    const filteredSurveyGroups = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
+        "SidebarRight.useMemo[filteredSurveyGroups]": ()=>{
+            return surveyGroups.filter({
+                "SidebarRight.useMemo[filteredSurveyGroups]": (s)=>activeTab === "field" ? s.source === "import" : s.source !== "import"
+            }["SidebarRight.useMemo[filteredSurveyGroups]"]);
         }
-    }["SidebarRight.useMemo[option3D]"], [
-        echosounderData
-    ]); // 16. Dependensi useMemo adalah echosounderData
+    }["SidebarRight.useMemo[filteredSurveyGroups]"], [
+        surveyGroups,
+        activeTab
+    ]);
+    const totalPages = Math.ceil(filteredSurveyGroups.length / itemsPerPage);
+    const currentSurveys = filteredSurveyGroups.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    // === Render UI ===
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "p-4 w-full space-y-6",
+        className: "p-4 w-full space-y-6 bg-gradient-to-br from-slate-50 to-white rounded-xl shadow-lg h-full overflow-y-auto border border-slate-200",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "flex items-center justify-between",
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
-                        className: "font-bold mb-4 text-lg text-slate-700",
-                        children: "📊 Diagram Penampang Echosounder"
-                    }, void 0, false, {
+                        className: "font-bold text-xl text-slate-800 flex items-center gap-2",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "text-blue-600",
+                                children: "📊"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                lineNumber: 260,
+                                columnNumber: 11
+                            }, this),
+                            "Perbandingan Penampang Transek"
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 151,
+                        lineNumber: 259,
                         columnNumber: 9
                     }, this),
-                    Array.isArray(echosounderData) && echosounderData.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$chartjs$2d$2$2f$dist$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Line"], {
-                        data: data,
-                        options: options
-                    }, void 0, false, {
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "flex space-x-1 bg-slate-100 rounded-lg p-1",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                onClick: ()=>setActiveTab("field"),
+                                className: `px-3 py-1 text-sm font-medium rounded-md transition ${activeTab === "field" ? "bg-blue-500 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`,
+                                children: "📥 Data Lapangan"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                lineNumber: 264,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                onClick: ()=>setActiveTab("simulated"),
+                                className: `px-3 py-1 text-sm font-medium rounded-md transition ${activeTab === "simulated" ? "bg-blue-500 text-white shadow" : "text-slate-600 hover:bg-slate-200"}`,
+                                children: "🖌️ Simulasi"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                lineNumber: 267,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 153,
-                        columnNumber: 73
-                    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-sm text-gray-400 italic",
-                        children: "Belum ada data untuk divisualisasikan."
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 153,
-                        columnNumber: 114
+                        lineNumber: 263,
+                        columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/SidebarRight.tsx",
-                lineNumber: 150,
+                lineNumber: 258,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "space-y-3",
                 children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
-                        className: "font-bold mb-4 text-lg text-slate-700",
-                        children: "🧊 Visualisasi 3D"
-                    }, void 0, false, {
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
+                        className: "block text-sm font-semibold text-slate-700",
+                        children: [
+                            "Pilih Survey (",
+                            activeTab === "field" ? "Lapangan" : "Simulasi",
+                            ")"
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 158,
+                        lineNumber: 275,
                         columnNumber: 9
                     }, this),
-                    Array.isArray(echosounderData) && echosounderData.length > 0 ? // 19. Gunakan ReactECharts dengan opsi 3D
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(ReactECharts, {
-                        option: option3D,
-                        style: {
-                            height: 400
-                        }
+                    loading ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "text-sm text-slate-500 italic",
+                        children: "Memuat daftar..."
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 162,
+                        lineNumber: 278,
                         columnNumber: 11
-                    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-sm text-gray-400 italic",
-                        children: "Belum ada data untuk divisualisasikan."
+                    }, this) : filteredSurveyGroups.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "text-sm text-slate-400 italic",
+                        children: activeTab === "field" ? "Belum ada data upload." : "Tidak ada data simulasi."
                     }, void 0, false, {
                         fileName: "[project]/src/components/SidebarRight.tsx",
-                        lineNumber: 164,
+                        lineNumber: 280,
+                        columnNumber: 11
+                    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "overflow-x-auto border rounded-lg bg-white shadow-sm",
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("table", {
+                                    className: "min-w-full divide-y divide-slate-200",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("thead", {
+                                            className: "bg-slate-50",
+                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("tr", {
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
+                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
+                                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                                                            type: "checkbox",
+                                                            checked: selectedSurveyIds.length > 0 && selectedSurveyIds.every((id)=>filteredSurveyGroups.some((s)=>s.surveyId === id)),
+                                                            onChange: (e)=>setSelectedSurveyIds(e.target.checked ? filteredSurveyGroups.map((s)=>s.surveyId) : []),
+                                                            className: "rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/components/SidebarRight.tsx",
+                                                            lineNumber: 288,
+                                                            columnNumber: 23
+                                                        }, this)
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                                        lineNumber: 287,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
+                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
+                                                        children: "Survey ID"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                                        lineNumber: 295,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
+                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
+                                                        children: "Tanggal"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                                        lineNumber: 296,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
+                                                        className: "px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider",
+                                                        children: "Titik"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                                        lineNumber: 297,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                                lineNumber: 286,
+                                                columnNumber: 19
+                                            }, this)
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/SidebarRight.tsx",
+                                            lineNumber: 285,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("tbody", {
+                                            className: "divide-y divide-slate-200",
+                                            children: currentSurveys.map((survey)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("tr", {
+                                                    className: `transition-all hover:bg-blue-50 cursor-pointer ${selectedSurveyIds.includes(survey.surveyId) ? "bg-blue-50 border-l-4 border-blue-400" : ""}`,
+                                                    children: [
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
+                                                            className: "px-4 py-3",
+                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                                                                type: "checkbox",
+                                                                checked: selectedSurveyIds.includes(survey.surveyId),
+                                                                onChange: ()=>setSelectedSurveyIds((prev)=>prev.includes(survey.surveyId) ? prev.filter((id)=>id !== survey.surveyId) : [
+                                                                            ...prev,
+                                                                            survey.surveyId
+                                                                        ]),
+                                                                className: "rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                                                lineNumber: 304,
+                                                                columnNumber: 25
+                                                            }, this)
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/components/SidebarRight.tsx",
+                                                            lineNumber: 303,
+                                                            columnNumber: 23
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
+                                                            className: "px-4 py-3 font-mono text-sm text-slate-800",
+                                                            children: [
+                                                                "SURVEY...",
+                                                                survey.surveyId.slice(-6)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/components/SidebarRight.tsx",
+                                                            lineNumber: 311,
+                                                            columnNumber: 23
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
+                                                            className: "px-4 py-3 text-sm text-slate-500",
+                                                            children: survey.date
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/components/SidebarRight.tsx",
+                                                            lineNumber: 312,
+                                                            columnNumber: 23
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
+                                                            className: "px-4 py-3 text-sm text-slate-500",
+                                                            children: allData[survey.surveyId]?.length || 0
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/components/SidebarRight.tsx",
+                                                            lineNumber: 313,
+                                                            columnNumber: 23
+                                                        }, this)
+                                                    ]
+                                                }, survey.surveyId, true, {
+                                                    fileName: "[project]/src/components/SidebarRight.tsx",
+                                                    lineNumber: 302,
+                                                    columnNumber: 21
+                                                }, this))
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/SidebarRight.tsx",
+                                            lineNumber: 300,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/SidebarRight.tsx",
+                                    lineNumber: 284,
+                                    columnNumber: 15
+                                }, this)
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                lineNumber: 283,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "flex items-center justify-between text-sm text-slate-600",
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                        children: [
+                                            "Menampilkan ",
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                className: "font-medium",
+                                                children: currentSurveys.length
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                                lineNumber: 323,
+                                                columnNumber: 29
+                                            }, this),
+                                            " dari ",
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                className: "font-medium",
+                                                children: filteredSurveyGroups.length
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                                lineNumber: 323,
+                                                columnNumber: 95
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                        lineNumber: 322,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        className: "flex items-center space-x-2",
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                                onClick: ()=>setCurrentPage((prev)=>Math.max(prev - 1, 1)),
+                                                disabled: currentPage === 1,
+                                                className: `px-3 py-1 rounded border ${currentPage === 1 ? "bg-slate-100 text-slate-400" : "bg-white text-slate-700 hover:bg-slate-50"}`,
+                                                children: "Previous"
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                                lineNumber: 326,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                children: [
+                                                    currentPage,
+                                                    " / ",
+                                                    totalPages
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                                lineNumber: 333,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                                onClick: ()=>setCurrentPage((prev)=>Math.min(prev + 1, totalPages)),
+                                                disabled: currentPage === totalPages,
+                                                className: `px-3 py-1 rounded border ${currentPage === totalPages ? "bg-slate-100 text-slate-400" : "bg-white text-slate-700 hover:bg-slate-50"}`,
+                                                children: "Next"
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                                lineNumber: 336,
+                                                columnNumber: 17
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/components/SidebarRight.tsx",
+                                        lineNumber: 325,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                lineNumber: 321,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "text-xs text-slate-500",
+                        children: "Pilih survey untuk membandingkan profil dasar."
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/SidebarRight.tsx",
+                        lineNumber: 347,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/src/components/SidebarRight.tsx",
+                lineNumber: 274,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "flex-1 h-80 bg-white p-4 rounded-lg shadow-inner",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
+                        className: "font-semibold mb-3 text-slate-700",
+                        children: "Grafik Profil Dasar"
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/SidebarRight.tsx",
+                        lineNumber: 352,
+                        columnNumber: 9
+                    }, this),
+                    loadingPoints ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "flex items-center justify-center h-64",
+                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                            className: "text-sm text-slate-500",
+                            children: "📊 Memuat data..."
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/SidebarRight.tsx",
+                            lineNumber: 355,
+                            columnNumber: 13
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/SidebarRight.tsx",
+                        lineNumber: 354,
+                        columnNumber: 11
+                    }, this) : selectedSurveyIds.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "flex items-center justify-center h-64 text-slate-400",
+                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                            className: "italic",
+                            children: [
+                                'Pilih survey dari tab "',
+                                activeTab === "field" ? "Data Lapangan" : "Simulasi",
+                                '".'
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/src/components/SidebarRight.tsx",
+                            lineNumber: 359,
+                            columnNumber: 13
+                        }, this)
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/SidebarRight.tsx",
+                        lineNumber: 358,
+                        columnNumber: 11
+                    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$chartjs$2d$2$2f$dist$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Line"], {
+                        data: chartData,
+                        options: chartOptions
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/SidebarRight.tsx",
+                        lineNumber: 362,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/SidebarRight.tsx",
-                lineNumber: 157,
+                lineNumber: 351,
                 columnNumber: 7
+            }, this),
+            selectedSurveyIds.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "text-sm text-slate-600 space-y-1 border-t pt-3 border-slate-200",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
+                                children: "✅ Survey Dipilih:"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                lineNumber: 370,
+                                columnNumber: 13
+                            }, this),
+                            " ",
+                            selectedSurveyIds.length
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/src/components/SidebarRight.tsx",
+                        lineNumber: 369,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
+                                children: "📊 Total Titik:"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                lineNumber: 373,
+                                columnNumber: 13
+                            }, this),
+                            " ",
+                            Object.values(allData).flat().length
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/src/components/SidebarRight.tsx",
+                        lineNumber: 372,
+                        columnNumber: 11
+                    }, this),
+                    allDistances.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
+                                children: "📏 Jarak Maks:"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/SidebarRight.tsx",
+                                lineNumber: 377,
+                                columnNumber: 15
+                            }, this),
+                            " ",
+                            Math.max(...allDistances),
+                            " m"
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/src/components/SidebarRight.tsx",
+                        lineNumber: 376,
+                        columnNumber: 13
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/src/components/SidebarRight.tsx",
+                lineNumber: 368,
+                columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/SidebarRight.tsx",
-        lineNumber: 148,
+        lineNumber: 256,
         columnNumber: 5
     }, this);
 }
-_s(SidebarRight, "NKv0Yzq/FYRPJO0mxQu7dCGtinU=", false, function() {
+_s(SidebarRight, "/QzJJVNWbMcZmziE3zKgeqHRcS8=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"]
     ];
 });
-_c1 = SidebarRight;
-var _c, _c1;
-__turbopack_context__.k.register(_c, "ReactECharts");
-__turbopack_context__.k.register(_c1, "SidebarRight");
+_c = SidebarRight;
+var _c;
+__turbopack_context__.k.register(_c, "SidebarRight");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(module, globalThis.$RefreshHelpers$);
 }
@@ -1019,7 +1533,6 @@ __turbopack_context__.s({
     "default": (()=>FeaturePanel)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$papaparse$2f$papaparse$2e$min$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/papaparse/papaparse.min.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/DataContext.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/ToolContext.tsx [app-client] (ecmascript)");
@@ -1029,359 +1542,376 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 ;
-;
+// ✅ Fungsi bantu: Ambil headers otentikasi
+const getAuthHeaders = ()=>{
+    const token = localStorage.getItem("authToken");
+    return {
+        ...token ? {
+            Authorization: `Bearer ${token}`
+        } : {}
+    };
+};
 function FeaturePanel({ activePanel, close }) {
     _s();
-    const { echosounderData, setEchosounderData, addFeature } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])();
-    const { setShowSidebarRight } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useTool"])();
-    // --- Muat data echosounder dari backend saat komponen mount ---
-    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
-        "FeaturePanel.useEffect": ()=>{
-        // Opsional: ambil dari backend jika ada data sebelumnya
-        // Misal: fetch dari spatialFeatures dengan layerType = "echosounder"
-        }
-    }["FeaturePanel.useEffect"], []);
-    const handleSubmit = async (e)=>{
+    const { echosounderData, setEchosounderData, refreshData, refreshSurveyList } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"])();
+    const { setShowSidebarRight, setShowSurface3D } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useTool"])();
+    const [manualJarak, setManualJarak] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
+    const [manualKedalaman, setManualKedalaman] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
+    const [uploadStatus, setUploadStatus] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    // --- Input manual ---
+    const handleSubmit = (e)=>{
         e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const jarak = parseFloat(formData.get("jarak"));
-        const kedalaman = parseFloat(formData.get("kedalaman"));
+        const jarak = parseFloat(manualJarak);
+        const kedalaman = parseFloat(manualKedalaman);
         if (isNaN(jarak) || isNaN(kedalaman)) {
-            alert("Jarak dan kedalaman harus berupa angka.");
+            alert("❌ Jarak dan kedalaman harus angka.");
             return;
         }
-        // Buat GeoJSON Point
-        const pointFeature = {
-            type: "Point",
-            coordinates: [
-                104.76 + jarak * 0.0001,
-                -2.98 + jarak * 0.0001
-            ]
-        };
-        // Simpan ke backend
-        try {
-            await addFeature({
-                type: "Feature",
-                properties: {
-                    layerType: "echosounder",
+        setEchosounderData((prev)=>[
+                ...Array.isArray(prev) ? prev : [],
+                {
                     jarak,
-                    kedalaman,
-                    name: `Titik ${echosounderData.length + 1}`
-                },
-                geometry: pointFeature
-            });
-            // Update state lokal
-            setEchosounderData((prev)=>[
-                    ...Array.isArray(prev) ? prev : [],
-                    {
-                        jarak,
-                        kedalaman
-                    }
-                ]);
-        } catch (err) {
-            console.error("Gagal simpan titik echosounder:", err);
-            alert("Gagal menyimpan ke server.");
-        }
-        e.currentTarget.reset();
+                    kedalaman
+                }
+            ]);
+        setManualJarak("");
+        setManualKedalaman("");
     };
+    // --- Upload CSV ---
     const handleCSVUpload = (e)=>{
         const file = e.target.files?.[0];
         if (!file) return;
-        __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$papaparse$2f$papaparse$2e$min$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results)=>{
-                const parsed = results.data;
-                const cleaned = parsed.map((row, index)=>({
-                        jarak: parseFloat(row.jarak ?? ""),
-                        kedalaman: parseFloat(row.kedalaman ?? "")
-                    })).filter((d)=>!isNaN(d.jarak) && !isNaN(d.kedalaman));
-                if (cleaned.length === 0) {
-                    alert("Tidak ada data valid dalam file CSV.");
-                    return;
-                }
-                // Simpan semua titik ke backend
-                const savePromises = cleaned.map(async (d, index)=>{
-                    const pointFeature = {
-                        type: "Point",
-                        coordinates: [
-                            104.76 + d.jarak * 0.0001,
-                            -2.98 + d.jarak * 0.0001
-                        ]
-                    };
-                    try {
-                        await addFeature({
-                            type: "Feature",
-                            properties: {
-                                layerType: "echosounder",
-                                jarak: d.jarak,
-                                kedalaman: d.kedalaman,
-                                name: `CSV-${index + 1}`
-                            },
-                            geometry: pointFeature
-                        });
-                    } catch (err) {
-                        console.error(`Gagal simpan titik ${index + 1}:`, err);
-                    }
-                });
-                await Promise.all(savePromises);
-                // Update state lokal
-                setEchosounderData(cleaned);
-                alert(`Berhasil mengunggah ${cleaned.length} titik dari CSV.`);
-            },
-            error: (err)=>{
-                alert("Gagal memuat file CSV: " + err.message);
+        setUploadStatus({
+            loading: true,
+            type: "unknown",
+            count: 0
+        });
+        const formData = new FormData();
+        formData.append("file", file);
+        fetch("http://localhost:5000/api/upload/echosounder", {
+            method: "POST",
+            body: formData,
+            headers: getAuthHeaders()
+        }).then((res)=>{
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
             }
+            return res.json();
+        }).then((result)=>{
+            console.log("✅ Upload sukses:", result);
+            if (result.success) {
+                // ✅ 1. Simpan ke localStorage sebagai riwayat upload
+                const savedSurveys = JSON.parse(localStorage.getItem("fieldSurveys") || "[]");
+                const newSurvey = {
+                    surveyId: result.surveyId,
+                    date: new Date().toLocaleDateString("id-ID"),
+                    count: result.count,
+                    source: "import",
+                    uploadedAt: new Date().toISOString()
+                };
+                // Hindari duplikat
+                const filtered = savedSurveys.filter((s)=>s.surveyId !== result.surveyId);
+                localStorage.setItem("fieldSurveys", JSON.stringify([
+                    ...filtered,
+                    newSurvey
+                ]));
+                // ✅ 2. Trigger refresh di SidebarRight
+                refreshSurveyList(); // ← Hanya untuk list di tab "Data Lapangan"
+                refreshData(); // ← Untuk sinkron data utama (opsional)
+                alert(`✅ ${result.count} titik berhasil diimpor sebagai ${result.surveyId}`);
+            } else {
+                alert(`❌ Upload gagal: ${result.error}`);
+            }
+        }).catch((err)=>{
+            console.error("❌ Gagal upload:", err);
+            alert(`❌ Gagal upload: ${err.message}`);
+        }).finally(()=>{
+            setUploadStatus(null);
+            e.target.value = "";
         });
     };
-    const dataToDisplay = Array.isArray(echosounderData) ? echosounderData : [];
+    // --- Sinkronisasi ke localStorage ---
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "FeaturePanel.useEffect": ()=>{
+            if (Array.isArray(echosounderData)) {
+                try {
+                    localStorage.setItem("echosounderData", JSON.stringify(echosounderData));
+                } catch (err) {
+                    console.warn("Gagal simpan ke localStorage:", err);
+                }
+            }
+        }
+    }["FeaturePanel.useEffect"], [
+        echosounderData
+    ]);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "FeaturePanel.useEffect": ()=>({
+                "FeaturePanel.useEffect": ()=>setUploadStatus(null)
+            })["FeaturePanel.useEffect"]
+    }["FeaturePanel.useEffect"], []);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "absolute top-4 left-1/2 -translate-x-1/2 w-[400px] bg-white rounded-xl shadow-lg p-4 z-50 overflow-auto max-h-[80vh]",
+        className: "absolute top-4 left-1/2 -translate-x-1/2 w-[480px] bg-white rounded-xl shadow-2xl p-5 z-50 overflow-auto max-h-[90vh] border border-gray-200",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                className: "flex justify-between items-center mb-3",
+                className: "flex justify-between items-center mb-4 pb-3 border-b border-gray-100",
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h3", {
-                        className: "text-lg font-bold text-slate-800",
-                        children: {
-                            rute: "Input Data Rute Survey",
-                            interpolasi: "Interpolasi Data Batimetri",
-                            sbn: "Sarana Bantu Navigasi",
-                            echosounder: "Visualisasi Echosounder"
-                        }[activePanel]
-                    }, void 0, false, {
+                        className: "text-xl font-bold text-slate-800 flex items-center gap-2",
+                        children: [
+                            activePanel === "echosounder" && "📊",
+                            " ",
+                            panelTitle[activePanel]
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 132,
+                        lineNumber: 129,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                         onClick: close,
-                        className: "text-red-500 hover:underline text-sm",
-                        children: "Tutup"
+                        className: "text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full p-1 transition-all",
+                        "aria-label": "Tutup",
+                        children: "✕"
                     }, void 0, false, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 142,
+                        lineNumber: 132,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                lineNumber: 131,
+                lineNumber: 128,
                 columnNumber: 7
             }, this),
             activePanel === "echosounder" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "space-y-5",
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-sm text-gray-700 mb-3",
-                        children: [
-                            "Masukkan data pengukuran kedalaman (",
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("i", {
-                                children: "echosounder"
-                            }, void 0, false, {
-                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 151,
-                                columnNumber: 49
-                            }, this),
-                            ") secara manual atau unggah melalui file CSV."
-                        ]
-                    }, void 0, true, {
+                        className: "text-sm text-gray-600",
+                        children: "Masukkan data kedalaman manual atau unggah file CSV."
+                    }, void 0, false, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 150,
+                        lineNumber: 139,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
                         onSubmit: handleSubmit,
-                        className: "space-y-3 mb-4",
+                        className: "space-y-3 bg-gray-50 p-4 rounded-lg border",
                         children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "flex flex-col",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                                        htmlFor: "jarak",
-                                        className: "text-sm text-slate-700 font-medium mb-1",
-                                        children: "Jarak (meter)"
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 156,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                                        id: "jarak",
-                                        name: "jarak",
-                                        type: "number",
-                                        step: "any",
-                                        required: true,
-                                        className: "border border-gray-300 rounded px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 159,
-                                        columnNumber: 15
-                                    }, this)
-                                ]
-                            }, void 0, true, {
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h4", {
+                                className: "font-medium text-slate-700",
+                                children: "➕ Input Manual"
+                            }, void 0, false, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 155,
+                                lineNumber: 142,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "flex flex-col",
+                                className: "grid grid-cols-2 gap-3",
                                 children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                                        htmlFor: "kedalaman",
-                                        className: "text-sm text-slate-700 font-medium mb-1",
-                                        children: "Kedalaman (meter)"
-                                    }, void 0, false, {
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
+                                                className: "text-xs text-slate-600",
+                                                children: "Jarak (m)"
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                                lineNumber: 145,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                                                type: "number",
+                                                step: "any",
+                                                value: manualJarak,
+                                                onChange: (e)=>setManualJarak(e.target.value),
+                                                required: true,
+                                                className: "w-full border rounded px-3 py-2 text-sm",
+                                                placeholder: "50.5"
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                                lineNumber: 146,
+                                                columnNumber: 17
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 163,
+                                        lineNumber: 144,
                                         columnNumber: 15
                                     }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                                        id: "kedalaman",
-                                        name: "kedalaman",
-                                        type: "number",
-                                        step: "any",
-                                        required: true,
-                                        className: "border border-gray-300 rounded px-3 py-2 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    }, void 0, false, {
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
+                                                className: "text-xs text-slate-600",
+                                                children: "Kedalaman (m)"
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                                lineNumber: 149,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                                                type: "number",
+                                                step: "any",
+                                                value: manualKedalaman,
+                                                onChange: (e)=>setManualKedalaman(e.target.value),
+                                                required: true,
+                                                className: "w-full border rounded px-3 py-2 text-sm",
+                                                placeholder: "2.3"
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                                lineNumber: 150,
+                                                columnNumber: 17
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
                                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 166,
+                                        lineNumber: 148,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 162,
+                                lineNumber: 143,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                                 type: "submit",
-                                className: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 text-sm w-full",
-                                children: "Tambahkan Titik Pengukuran"
+                                className: "w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-500 text-sm font-medium",
+                                children: "Tambah Titik"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 169,
+                                lineNumber: 153,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 154,
+                        lineNumber: 141,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "mb-4",
+                        className: "bg-blue-50 p-4 rounded-lg border border-blue-200",
                         children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                                className: "block text-xs text-gray-500 mb-1 italic",
-                                children: [
-                                    "Atau unggah file CSV dengan format: ",
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                        children: "jarak,kedalaman"
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 176,
-                                        columnNumber: 51
-                                    }, this)
-                                ]
-                            }, void 0, true, {
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h4", {
+                                className: "font-medium text-slate-700 mb-1",
+                                children: "📁 Unggah CSV"
+                            }, void 0, false, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 175,
+                                lineNumber: 159,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                                 type: "file",
                                 accept: ".csv",
                                 onChange: handleCSVUpload,
-                                className: "text-sm text-gray-700 block w-full border border-gray-300 rounded p-2 bg-white file:mr-2 file:py-1 file:px-3 file:border file:border-gray-300 file:bg-gray-100 file:text-sm file:text-gray-700"
+                                className: "text-sm block w-full"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 178,
+                                lineNumber: 160,
+                                columnNumber: 13
+                            }, this),
+                            uploadStatus?.loading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-xs text-blue-600 mt-2",
+                                children: "🔄 Memproses file..."
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                lineNumber: 161,
+                                columnNumber: 39
+                            }, this),
+                            uploadStatus && !uploadStatus.loading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "mt-2 text-xs text-green-600",
+                                children: [
+                                    "✅ ",
+                                    uploadStatus.count,
+                                    " titik dimuat sebagai ",
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("b", {
+                                        children: uploadStatus.type.toUpperCase()
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                        lineNumber: 164,
+                                        columnNumber: 61
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                lineNumber: 163,
+                                columnNumber: 15
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("a", {
+                                href: "/template_echosounder.csv",
+                                download: true,
+                                className: "text-xs text-blue-600 hover:underline block mt-2",
+                                children: "📥 Download Template CSV"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                lineNumber: 167,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 174,
+                        lineNumber: 158,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "mb-4 max-h-48 overflow-y-auto border border-gray-300 rounded p-2 bg-gray-50 text-sm",
-                        children: dataToDisplay.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                            className: "text-gray-400 italic",
-                            children: "Belum ada data dimasukkan."
-                        }, void 0, false, {
-                            fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                            lineNumber: 188,
-                            columnNumber: 15
-                        }, this) : dataToDisplay.map((d, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "text-gray-800",
-                                children: [
-                                    i + 1,
-                                    ". Jarak: ",
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
-                                        children: [
-                                            d.jarak.toFixed(2),
-                                            " m"
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 192,
-                                        columnNumber: 35
-                                    }, this),
-                                    ", Kedalaman: ",
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
-                                        children: [
-                                            d.kedalaman.toFixed(2),
-                                            " m"
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                        lineNumber: 192,
-                                        columnNumber: 87
-                                    }, this)
-                                ]
-                            }, i, true, {
+                        className: "flex gap-2 pt-3 border-t",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                onClick: ()=>{
+                                    setShowSidebarRight(true);
+                                    close();
+                                },
+                                className: "flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-500 text-sm font-medium",
+                                children: "📈 Tampilkan 2D"
+                            }, void 0, false, {
                                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                                lineNumber: 191,
-                                columnNumber: 17
-                            }, this))
-                    }, void 0, false, {
+                                lineNumber: 173,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                onClick: ()=>{
+                                    setShowSurface3D(true);
+                                    close();
+                                },
+                                className: "flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-500 text-sm font-medium",
+                                children: "🌐 Buka 3D"
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/panels/FeaturePanel.tsx",
+                                lineNumber: 182,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 186,
-                        columnNumber: 11
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                        onClick: ()=>{
-                            setShowSidebarRight(true);
-                            close();
-                        },
-                        className: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-500 text-sm w-full",
-                        children: "📈 Proses dan Tampilkan Penampang"
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                        lineNumber: 198,
+                        lineNumber: 172,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-                lineNumber: 149,
+                lineNumber: 138,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/panels/FeaturePanel.tsx",
-        lineNumber: 129,
+        lineNumber: 127,
         columnNumber: 5
     }, this);
 }
-_s(FeaturePanel, "S676nvTzydyIdMx9uyMYohpUojQ=", false, function() {
+_s(FeaturePanel, "FwBQnLxcriZuj+MOyIjPO0GAkWM=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$DataContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useData"],
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$ToolContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useTool"]
     ];
 });
 _c = FeaturePanel;
+// --- Helper Judul Panel ---
+const panelTitle = {
+    rute: "Input Data Rute Survey",
+    interpolasi: "Interpolasi Data Batimetri",
+    sbn: "Sarana Bantu Navigasi",
+    echosounder: "Visualisasi Echosounder"
+};
 var _c;
 __turbopack_context__.k.register(_c, "FeaturePanel");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {

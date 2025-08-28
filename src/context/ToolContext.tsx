@@ -20,6 +20,7 @@ export type Tool =
 // --- Tipe Mode Survei ---
 type SurveyMode = "line" | "polygon" | null;
 
+// --- Interface Context ---
 interface ToolContextType {
   // --- STATE UTAMA ---
   activeTool: Tool;
@@ -46,6 +47,12 @@ interface ToolContextType {
   // --- UI ---
   showSidebarRight: boolean;
   setShowSidebarRight: React.Dispatch<React.SetStateAction<boolean>>;
+
+  // --- 3D PANEL (untuk visualisasi transek) ---
+  show3DPanel: boolean;
+  setShow3DPanel: (show: boolean) => void;
+  surveyIdFor3D: string | null;
+  setSurveyIdFor3D: (id: string | null) => void;
 }
 
 const ToolContext = createContext<ToolContextType | undefined>(undefined);
@@ -58,6 +65,10 @@ export function ToolProvider({ children }: { children: ReactNode }) {
   const [surveyMode, setSurveyMode] = useState<SurveyMode>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<Feature<Geometry, GeoJsonProperties>[]>([]);
   const [showSidebarRight, setShowSidebarRight] = useState(false);
+
+  // --- STATE UNTUK 3D PANEL ---
+  const [show3DPanel, setShow3DPanel] = useState(false);
+  const [surveyIdFor3D, setSurveyIdFor3D] = useState<string | null>(null);
 
   return (
     <ToolContext.Provider
@@ -76,6 +87,12 @@ export function ToolProvider({ children }: { children: ReactNode }) {
         setSelectedFeatures,
         showSidebarRight,
         setShowSidebarRight,
+
+        // --- EXPORT STATE 3D ---
+        show3DPanel,
+        setShow3DPanel,
+        surveyIdFor3D,
+        setSurveyIdFor3D,
       }}
     >
       {children}

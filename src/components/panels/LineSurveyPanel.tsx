@@ -1,6 +1,6 @@
 // src/components/panels/LineSurveyPanel.tsx
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useData } from "@/context/DataContext";
 import { useTool } from "@/context/ToolContext";
 import * as L from "leaflet";
@@ -60,6 +60,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   const [areaOptions, setAreaOptions] = useState<Array<{ id: number; name: string }>>([]);
   const [isDataReady, setIsDataReady] = useState(false);
   const [surveyId, setSurveyId] = useState<string | null>(null);
+  // ❌ show3DPanel dihapus
 
   // Debug: info jumlah titik
   const [debugInfo, setDebugInfo] = useState<{
@@ -71,7 +72,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   // --- DRAGGABLE ---
   const panelRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 32, y: 16 }); // default posisi
+  const [position, setPosition] = useState({ x: 32, y: 16 });
 
   // Muat posisi dari localStorage
   useEffect(() => {
@@ -93,17 +94,13 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // ✅ Hanya tombol kiri mouse (0 = left, 1 = middle, 2 = right)
     if (e.button !== 0) return;
-
     if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left;
     const offsetY = e.clientY - rect.top;
 
     setIsDragging(true);
-
-    // ✅ Prevent text selection saat drag
     e.preventDefault();
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -138,7 +135,6 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   useEffect(() => {
     const fetchAreas = async () => {
       try {
-        console.log("🔍 Memuat daftar area_sungai...");
         const res = await fetch("http://localhost:5000/graphql", {
           method: "POST",
           headers: getAuthHeaders(),
@@ -155,26 +151,17 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
           }),
         });
 
-        console.log("📡 Status response:", res.status, res.statusText);
-
         const text = await res.text();
-        console.log("🔍 Raw response:", text);
-
         let data;
         try {
           data = JSON.parse(text);
         } catch (e) {
-          console.error("❌ Response bukan JSON valid:", text);
           throw new Error("Server mengembalikan data tidak valid");
         }
 
-        if (data.errors) {
-          console.error("❌ GraphQL Errors:", data.errors);
-          throw new Error(`GraphQL Error: ${data.errors[0].message}`);
-        }
+        if (data.errors) throw new Error(data.errors[0].message);
 
         if (data.data?.layerOptions) {
-          console.log("✅ Area berhasil dimuat:", data.data.layerOptions);
           setAreaOptions(data.data.layerOptions);
           if (!selectedAreaId && data.data.layerOptions.length > 0) {
             setSelectedAreaId(data.data.layerOptions[0].id);
@@ -184,7 +171,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
         }
       } catch (err) {
         console.error("❌ Gagal muat area:", err);
-        alert("Gagal memuat daftar area. Cek konsol untuk detail.");
+        alert("Gagal memuat daftar area.");
       }
     };
     fetchAreas();
@@ -211,13 +198,6 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
         panjang: parseFloat(panjang as any),
       };
 
-      console.log("🚀 handleProcessSurvey dipanggil");
-      console.log("draftId:", draftId, typeof draftId);
-      console.log("areaId:", selectedAreaId, typeof selectedAreaId);
-      console.log("spasi:", spasi, typeof spasi);
-      console.log("panjang:", panjang, typeof panjang);
-      console.log(":variables:", variables);
-
       const requestBody = {
         query: `
           mutation GenerateSurvey(
@@ -242,50 +222,32 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
         variables,
       };
 
-      console.log("📤 Mengirim ke GraphQL:", JSON.stringify(requestBody, null, 2));
-
       const res = await fetch("http://localhost:5000/graphql", {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(requestBody),
       });
 
-      console.log("📡 HTTP Status:", res.status, res.statusText);
-
       const responseText = await res.text();
-      console.log("🔍 Raw Response dari Server:", responseText);
-
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        console.error("❌ Response bukan JSON valid:", responseText);
         throw new Error("Server mengembalikan data tidak valid");
       }
 
-      console.log("✅ Response JSON:", data);
-
-      if (data.errors) {
-        console.error("❌ GraphQL Errors:", data.errors);
-        throw new Error(`GraphQL Error: ${data.errors[0].message}`);
-      }
+      if (data.errors) throw new Error(data.errors[0].message);
 
       const result = data.data?.generateSurvey;
-
-      if (!result) {
-        console.error("❌ Tidak ada data hasil dari mutation");
-        throw new Error("Tidak ada hasil dari server");
-      }
-
-      console.log("🎯 Hasil Mutation:", result);
+      if (!result) throw new Error("Tidak ada hasil dari server");
 
       if (result.success) {
-        alert("✅ Proses survey selesai. Menampilkan hasil...");
+        alert("✅ Proses survey selesai.");
         await refreshData();
         setIsDataReady(true);
 
         const validSampling = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point").length;
-        const matching = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point" && f.properties?.survey_id === id).length;
+        const matching = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point" && f.properties?.metadata?.survey_id === id).length;
 
         setDebugInfo({
           totalFeatures: features?.features?.length || 0,
@@ -293,12 +255,9 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
           matchingCount: matching || 0,
         });
       } else {
-        const errorMsg = result.message || "Proses gagal";
-        console.error("❌ Mutation gagal:", errorMsg);
-        alert(`❌ Gagal: ${errorMsg}`);
+        alert(`❌ Gagal: ${result.message || "Proses gagal"}`);
       }
     } catch (err: any) {
-      console.error("❌ Gagal proses survey:", err);
       alert(`❌ Gagal: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -308,7 +267,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   // --- HAPUS HASIL SURVEY ---
   const handleDeleteSurveyResult = async () => {
     if (!surveyId) return alert("Belum ada hasil survey.");
-    if (!confirm(`Yakin ingin hapus semua hasil dari survey ini?\nIni akan menghapus transek dan titik sampling.`)) return;
+    if (!confirm("Yakin ingin hapus semua hasil dari survey ini?")) return;
 
     try {
       const res = await fetch("http://localhost:5000/graphql", {
@@ -332,9 +291,9 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
         alert(data.data.deleteSurveyResults.message);
         setIsDataReady(false);
         setDebugInfo(null);
-        await refreshData(); // Refresh peta
+        await refreshData();
       } else {
-        throw new Error(data.data?.deleteSurveyResults.message || "Gagal hapus hasil survey");
+        throw new Error("Gagal hapus hasil survey");
       }
     } catch (err: any) {
       alert(`❌ Gagal: ${err.message}`);
@@ -343,15 +302,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
 
   // --- EXPORT SAMPLING POINTS ---
   const handleExport = async (format: "csv" | "geojson") => {
-    if (!surveyId) {
-      alert("Belum ada proses survey.");
-      return;
-    }
-
-    if (!isDataReady) {
-      alert("Data belum siap untuk diekspor.");
-      return;
-    }
+    if (!surveyId || !isDataReady) return alert("Data belum siap untuk diekspor.");
 
     try {
       const res = await fetch("http://localhost:5000/graphql", {
@@ -377,10 +328,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
       const data = await res.json();
       const points = data.data?.samplingPointsBySurveyId;
 
-      if (!points || points.length === 0) {
-        alert("⚠️ Tidak ada titik untuk diekspor.");
-        return;
-      }
+      if (!points || points.length === 0) return alert("⚠️ Tidak ada titik untuk diekspor.");
 
       if (format === "geojson") {
         const geojson = {
@@ -399,7 +347,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
         const headers = ["ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)"];
         const rows = points.map((p: any) => {
           const [lng, lat] = p.geometry?.coordinates || ["-", "-"];
-          return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
+          return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.depth_value ?? p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
         });
         downloadFile([headers.join(","), ...rows].join("\n"), `${surveyId}.csv`, "text/csv");
       }
@@ -408,7 +356,6 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     }
   };
 
-  // --- Fungsi Download File Lokal ---
   const downloadFile = (content: string, filename: string, mime: string) => {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -437,6 +384,44 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     const token = getAuthToken();
     decodeToken(token);
   }, []);
+
+  // ✅ Ambil titik sampling untuk 3D — dari valid_sampling_point & metadata
+  const samplingPoints = useMemo(() => {
+    if (!surveyId || !features?.features) return [];
+
+    return features.features
+      .filter((f) => {
+        // ✅ Coba semua kemungkinan layerType
+        const isValidType = f.properties?.layerType === "valid_sampling_point" || f.properties?.layerType === "batimetri";
+
+        // ✅ Ambil survey_id dari metadata
+        const hasSurveyId = f.properties?.metadata?.survey_id === surveyId;
+
+        if (!isValidType) {
+          console.log("❌ LayerType salah:", f.properties?.layerType);
+        }
+        if (!hasSurveyId) {
+          console.log("❌ Survey ID tidak cocok:", f.properties?.metadata?.survey_id);
+        }
+
+        return isValidType && hasSurveyId;
+      })
+      .map((f) => {
+        const [x, y] = f.geometry?.coordinates || [0, 0];
+        const depth = f.properties?.metadata?.depth_value || f.properties?.metadata?.kedalaman || 0;
+
+        return {
+          x,
+          y,
+          z: Math.abs(depth),
+        };
+      });
+  }, [features, surveyId]);
+
+  // ✅ Debug: Cek data sampling
+  useEffect(() => {
+    console.log("📊 samplingPoints untuk 3D:", samplingPoints);
+  }, [samplingPoints]);
 
   return (
     <div

@@ -6,9 +6,9 @@ import { useData } from "@/context/DataContext";
 
 interface Icon {
   id: number;
-  filename: string; // dari CSV (untuk referensi)
+  filename: string;
   name: string;
-  slug: string; // ✅ slug bersih: rambu_alur_pelayaran_bercabang_dan_dapat_di_layari_5
+  slug: string;
   category_slug: string;
   category_name: string;
 }
@@ -117,7 +117,7 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
       try {
         const res = await fetch("http://localhost:5000/api/toponimi-icons", {
           method: "GET",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(), // ✅ SUDAH KIRIM AUTHORIZATION
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -169,7 +169,6 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
       coordinates: [formLatLng.lng, formLatLng.lat] as [number, number],
     };
 
-    // ✅ Gunakan slug + .png
     const safeFilename = `${selectedIcon.slug}.png`;
 
     const variables = {
@@ -230,15 +229,9 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
 
       if (result.data?.createSpatialFeature?.id) {
         alert("📍 Toponimi berhasil ditambahkan!");
-
-        // Reset state
         setNama("");
         setDeskripsi("");
-
-        // Refresh data
         refreshData();
-
-        // Tutup panel
         setTimeout(() => {
           setFormLatLng(null);
           setShowToponimiForm(false);

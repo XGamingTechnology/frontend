@@ -29,7 +29,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ✅ Tambah tipe: React.FormEvent<HTMLFormElement>
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -47,14 +46,12 @@ export default function LoginPage() {
       const result: LoginResponse = await response.json();
 
       if (result.success) {
+        // ✅ Simpan token dan user
         localStorage.setItem("authToken", result.token);
         localStorage.setItem("user", JSON.stringify(result.user));
 
-        if (result.user.role === "admin") {
-          router.push("/admin");
-        } else {
-          router.push("/map");
-        }
+        // ✅ Semua user (admin & user) langsung ke peta
+        router.push("/map");
         router.refresh();
       } else {
         setError(result.message || "Login gagal");
@@ -91,24 +88,12 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block mb-1 text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:outline-none text-gray-900"
-                value={email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                required
-              />
+              <input type="email" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:outline-none text-gray-900" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
 
             <div>
               <label className="block mb-1 text-sm font-medium text-gray-700">Password</label>
-              <input
-                type="password"
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:outline-none text-gray-900"
-                value={password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                required
-              />
+              <input type="password" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 focus:outline-none text-gray-900" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
 
             {error && <div className="text-red-500 text-sm bg-red-50 p-3 rounded-md">{error}</div>}
