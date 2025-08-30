@@ -10,14 +10,14 @@ interface EchosounderPoint {
   kedalaman: number;
 }
 
-type DataType = "2d" | "3d" | "gps" | "unknown";
+type DataType = "2d" | "3d" | "unknown";
 
 interface FeaturePanelProps {
   activePanel: "rute" | "interpolasi" | "sbn" | "echosounder";
   close: () => void;
 }
 
-// ✅ Fungsi bantu: Ambil headers otentikasi
+// ✅ Fungsi bantu: Ambil headers otentikasi (tanpa Content-Type)
 const getAuthHeaders = () => {
   const token = localStorage.getItem("authToken");
   return {
@@ -27,7 +27,7 @@ const getAuthHeaders = () => {
 
 export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) {
   const { echosounderData, setEchosounderData, refreshData, refreshSurveyList } = useData();
-  const { setShowSidebarRight, setShowSurface3D } = useTool();
+  const { setShowSidebarRight, setShow3DPanel } = useTool();
 
   const [manualJarak, setManualJarak] = useState("");
   const [manualKedalaman, setManualKedalaman] = useState("");
@@ -66,7 +66,7 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
     fetch("http://localhost:5000/api/upload/echosounder", {
       method: "POST",
       body: formData,
-      headers: getAuthHeaders(),
+      headers: getAuthHeaders(), // ✅ Hanya Authorization, browser atur Content-Type
     })
       .then((res) => {
         if (!res.ok) {
@@ -83,6 +83,7 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
             surveyId: result.surveyId,
             date: new Date().toLocaleDateString("id-ID"),
             count: result.count,
+            type: result.type || "2d",
             source: "import",
             uploadedAt: new Date().toISOString(),
           };
@@ -92,10 +93,17 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
           localStorage.setItem("fieldSurveys", JSON.stringify([...filtered, newSurvey]));
 
           // ✅ 2. Trigger refresh di SidebarRight
-          refreshSurveyList(); // ← Hanya untuk list di tab "Data Lapangan"
-          refreshData(); // ← Untuk sinkron data utama (opsional)
+          refreshSurveyList(); // ← Ini akan picu re-render
+          refreshData(); // ← Sinkron data peta
 
-          alert(`✅ ${result.count} titik berhasil diimpor sebagai ${result.surveyId}`);
+          // ✅ 3. Update status upload
+          setUploadStatus({
+            loading: false,
+            type: result.type || "2d",
+            count: result.count,
+          });
+
+          alert(`✅ ${result.count} titik (${result.type === "3d" ? "3D" : "2D"}) berhasil diimpor sebagai ${result.surveyId}`);
         } else {
           alert(`❌ Upload gagal: ${result.error}`);
         }
@@ -106,7 +114,7 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
       })
       .finally(() => {
         setUploadStatus(null);
-        e.target.value = "";
+        e.target.value = ""; // Reset input file
       });
   };
 
@@ -121,8 +129,6 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
     }
   }, [echosounderData]);
 
-  useEffect(() => () => setUploadStatus(null), []);
-
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[480px] bg-white rounded-xl shadow-2xl p-5 z-50 overflow-auto max-h-[90vh] border border-gray-200">
       <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
@@ -136,10 +142,10 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
 
       {activePanel === "echosounder" && (
         <div className="space-y-5">
-          <p className="text-sm text-gray-600">Masukkan data kedalaman manual atau unggah file CSV.</p>
+          <p className="text-sm text-gray-600">Masukkan data kedalaman manual atau unggah file CSV (2D atau 3D).</p>
 
           <form onSubmit={handleSubmit} className="space-y-3 bg-gray-50 p-4 rounded-lg border">
-            <h4 className="font-medium text-slate-700">➕ Input Manual</h4>
+            <h4 className="font-medium text-slate-700">➕ Input Manual (2D)</h4>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-600">Jarak (m)</label>
@@ -156,16 +162,19 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
           </form>
 
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h4 className="font-medium text-slate-700 mb-1">📁 Unggah CSV</h4>
+            <h4 className="font-medium text-slate-700 mb-1">📁 Unggah CSV (2D atau 3D)</h4>
             <input type="file" accept=".csv" onChange={handleCSVUpload} className="text-sm block w-full" />
             {uploadStatus?.loading && <p className="text-xs text-blue-600 mt-2">🔄 Memproses file...</p>}
             {uploadStatus && !uploadStatus.loading && (
               <p className="mt-2 text-xs text-green-600">
-                ✅ {uploadStatus.count} titik dimuat sebagai <b>{uploadStatus.type.toUpperCase()}</b>
+                ✅ {uploadStatus.count} titik dimuat sebagai <b>{uploadStatus.type === "3d" ? "3D (XYZ)" : "2D (jarak-kedalaman)"}</b>
               </p>
             )}
-            <a href="/template_echosounder.csv" download className="text-xs text-blue-600 hover:underline block mt-2">
-              📥 Download Template CSV
+            <a href="/template_echosounder_2d.csv" download className="text-xs text-blue-600 hover:underline block mt-2">
+              📥 Download Template CSV 2D
+            </a>
+            <a href="/template_echosounder_3d.csv" download className="text-xs text-purple-600 hover:underline block mt-2">
+              📥 Download Template CSV 3D (jarak,offset,kedalaman)
             </a>
           </div>
 
@@ -181,12 +190,14 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
             </button>
             <button
               onClick={() => {
-                setShowSurface3D(true);
+                // Buka 3D Panel → akan fetch data dari backend
+                // Data 3D dari CSV sudah disimpan dengan offset_m
+                setShow3DPanel(true);
                 close();
               }}
-              className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-500 text-sm font-medium"
+              className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 rounded hover:from-purple-500 hover:to-indigo-500 text-sm font-medium"
             >
-              🌐 Buka 3D
+              3D 🚀 Buka Visualisasi
             </button>
           </div>
         </div>

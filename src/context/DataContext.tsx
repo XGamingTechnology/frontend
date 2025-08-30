@@ -541,7 +541,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 🔥 AMBIL DATA 3D
+  // 🔥 AMBIL DATA 3D — SUDAH DIPERBAIKI
   const fetchSurvey3DData = async (surveyId: string) => {
     console.log("🔧 fetchSurvey3DData dipanggil untuk:", surveyId);
 
@@ -574,14 +574,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const processedPoints: Point3D[] = points.map((p: any) => {
-        const meta = p.meta || {};
-        return {
-          x: meta.distance_m || 0,
-          y: meta.offset_m || 0,
-          z: meta.kedalaman || meta.depth_value || 0,
-        };
-      });
+      console.log("📊 [fetchSurvey3DData] Raw points:", points);
+
+      const processedPoints: Point3D[] = points
+        .map((p: any) => {
+          const meta = p.meta || {};
+          const x = parseFloat(meta.distance_m);
+          const y = parseFloat(meta.offset_m);
+          const z = -Math.abs(parseFloat(meta.kedalaman ?? meta.depth_value ?? 0)); // negatif = bawah
+
+          if (isNaN(x) || isNaN(y) || isNaN(z)) {
+            console.warn("⚠️ Titik tidak valid (NaN):", p);
+            return null;
+          }
+
+          return { x, y, z };
+        })
+        .filter((p): p is Point3D => p !== null); // Pastikan tipe aman
+
+      if (processedPoints.length === 0) {
+        console.error("❌ Semua titik tidak valid setelah proses");
+        setCurrent3DData(null);
+        return;
+      }
+
+      // Urutkan agar grid rapi
+      processedPoints.sort((a, b) => a.x - b.x || a.y - b.y);
 
       setCurrent3DData({
         surveyId,
@@ -624,7 +642,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshSurveyList,
         current3DData,
         setCurrent3DData,
-        fetchSurvey3DData, // ✅ PASTI ADA
+        fetchSurvey3DData,
       }}
     >
       {children}
