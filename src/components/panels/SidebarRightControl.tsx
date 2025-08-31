@@ -16,6 +16,10 @@ import CrossSectionChart from "./charts/CrossSectionChart";
 import { useSurveyData } from "@/hooks/useSurveyData";
 import { useSamplingPoints } from "@/hooks/useSamplingPoints";
 
+// ✅ GANTI: dom-to-image lebih kompatibel daripada html2canvas
+import domtoimage from "dom-to-image";
+import { saveAs } from "file-saver";
+
 export default function SidebarRightControl() {
   const [activeTab, setActiveTab] = useState<"field" | "simulated">("field");
   const [viewMode, setViewMode] = useState<"longitudinal" | "cross">("longitudinal");
@@ -60,6 +64,46 @@ export default function SidebarRightControl() {
     overflow: "hidden",
     transition: "width 0.3s ease, height 0.3s ease",
     boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+  };
+
+  // ✅ Fungsi Screenshot dengan dom-to-image
+  const handleScreenshot = () => {
+    const chartContainer = document.querySelector(".chart-container");
+    if (!chartContainer) {
+      alert("❌ Chart tidak ditemukan!");
+      return;
+    }
+
+    // Simpan style asli
+    const originalBackground = (chartContainer as HTMLElement).style.background;
+    const originalBoxShadow = (chartContainer as HTMLElement).style.boxShadow;
+
+    // Bersihkan background untuk hasil lebih baik
+    (chartContainer as HTMLElement).style.background = "#fff";
+    (chartContainer as HTMLElement).style.boxShadow = "none";
+
+    // Ekspor ke PNG
+    domtoimage
+      .toBlob(chartContainer as HTMLElement, {
+        bgcolor: "#fff",
+        quality: 1,
+        width: (chartContainer as HTMLElement).offsetWidth,
+        height: (chartContainer as HTMLElement).offsetHeight,
+      })
+      .then((blob) => {
+        const surveyNames = selectedSurveyIds.map((id) => id.slice(-6)).join("_");
+        const fileName = `profil_${viewMode}_${surveyNames}_${Date.now()}.png`;
+        saveAs(blob, fileName);
+      })
+      .catch((err) => {
+        console.error("❌ Gagal screenshot:", err);
+        alert("Gagal membuat screenshot. Cek konsol untuk detail.");
+      })
+      .finally(() => {
+        // Kembalikan style asli
+        (chartContainer as HTMLElement).style.background = originalBackground;
+        (chartContainer as HTMLElement).style.boxShadow = originalBoxShadow;
+      });
   };
 
   return (
@@ -111,6 +155,11 @@ export default function SidebarRightControl() {
                 {/* Mode Toggle */}
                 <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
 
+                {/* 📸 Screenshot Button */}
+                <button onClick={handleScreenshot} className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 transition shadow-sm" title="Ambil Screenshot Chart">
+                  📸
+                </button>
+
                 {/* Full Screen */}
                 <button
                   onClick={() => setIsFullScreen(!isFullScreen)}
@@ -129,13 +178,13 @@ export default function SidebarRightControl() {
 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
-            {/* Survey Selector (dengan Pagination) */}
+            {/* Survey Selector */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-all hover:shadow-md">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">📋 Pilih Survey ({activeTab === "field" ? "Lapangan" : "Simulasi"})</h3>
               <SurveySelector activeTab={activeTab} setActiveTab={setActiveTab} surveyGroups={surveyGroups} selectedSurveyIds={selectedSurveyIds} setSelectedSurveyIds={setSelectedSurveyIds} loading={loadingGroups} />
             </div>
 
-            {/* Distance Selector (untuk Cross Section) */}
+            {/* Distance Selector */}
             {viewMode === "cross" && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-all hover:shadow-md">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">📍 Pilih Jarak untuk Cross-Section</h3>
@@ -146,7 +195,8 @@ export default function SidebarRightControl() {
             {/* Chart Area */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
               <h3 className="text-sm font-semibold text-gray-700 mb-4">{viewMode === "longitudinal" ? "📈 Longitudinal Section" : "🔄 Cross Section"}</h3>
-              <div className="h-72 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-100">
+              <div className="h-72 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-100 chart-container">
+                {/* ✅ class "chart-container" digunakan untuk screenshot */}
                 {loadingPoints ? (
                   <p className="text-sm text-gray-500 animate-pulse">📊 Memuat data titik...</p>
                 ) : selectedSurveyIds.length === 0 ? (
@@ -181,7 +231,7 @@ export default function SidebarRightControl() {
         </div>
       )}
 
-      {/* 🔍 Debug Panel (Hapus di produksi) */}
+      {/* 🔍 Debug Panel */}
       <div className="fixed bottom-4 right-4 bg-black text-white p-3 rounded text-xs z-50 opacity-80">
         <p>
           <strong>Debug:</strong>
