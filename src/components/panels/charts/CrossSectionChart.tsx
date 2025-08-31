@@ -1,38 +1,82 @@
 // src/components/panels/charts/CrossSectionChart.tsx
-import { Line } from "react-chartjs-2";
-import { ChartOptions } from "chart.js";
-import { getCrossSectionChartData, getAllOffsets } from "../utils/chartDataHelpers";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 interface Props {
   selectedSurveyIds: string[];
-  allData: Record<string, any[]>;
+  allData: Record<string, { distance: number; offset: number; depth: number }[]>;
   selectedDistance: number | null;
 }
 
 export default function CrossSectionChart({ selectedSurveyIds, allData, selectedDistance }: Props) {
-  const allOffsets = getAllOffsets(allData);
-  const chartData = getCrossSectionChartData(selectedSurveyIds, allData, allOffsets, selectedDistance);
+  if (!selectedDistance) {
+    return <p className="text-sm text-gray-400 italic">Pilih jarak untuk cross-section.</p>;
+  }
 
-  const options: ChartOptions<"line"> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: "top", labels: { usePointStyle: true, boxWidth: 6, font: { size: 11 } } },
-      tooltip: {
-        mode: "index",
-        intersect: false,
-        callbacks: {
-          label: (ctx) => `${ctx.dataset?.label}: ${ctx.parsed.y} m`,
-        },
-      },
-    },
-    scales: {
-      y: { reverse: true, title: { display: true, text: "Kedalaman (m)" } },
-      x: { title: { display: true, text: "Offset Melintang (m)" } },
-    },
-  };
+  // Ambil titik terdekat dengan selectedDistance
+  const dataMap = new Map<number, Record<string, number>>();
 
-  if (!selectedDistance) return null;
+  selectedSurveyIds.forEach((id) => {
+    const points = allData[id] || [];
+    points.forEach((p) => {
+      if (Math.abs(p.distance - selectedDistance) <= 5) {
+        const offset = Math.round(p.offset);
+        if (!dataMap.has(offset)) dataMap.set(offset, {});
+        dataMap.get(offset)![id] = p.depth;
+      }
+    });
+  });
 
-  return <Line data={chartData} options={options} />;
+  const chartData = Array.from(dataMap.entries())
+    .map(([offset, depths]) => ({ offset, ...depths }))
+    .sort((a, b) => a.offset - b.offset);
+
+  if (chartData.length === 0) {
+    return <p className="text-sm text-gray-400 italic">Tidak ada data di jarak ini.</p>;
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 30 }}>
+        <CartesianGrid strokeDasharray="3 3" />
+
+        {/* X: Offset (kiri-kanan) */}
+        <XAxis
+          dataKey="offset"
+          label={{
+            value: "Offset Melintang (m)",
+            position: "insideBottom",
+            dy: 14,
+          }}
+        />
+
+        {/* Y: Kedalaman (0 di atas, makin dalam ke bawah) */}
+        <YAxis
+          domain={[0, "dataMax"]} // Kedalaman dari 0 ke max
+          label={{
+            value: "Kedalaman (m)",
+            angle: -90,
+            position: "insideLeft",
+            dx: -5,
+          }}
+          tickFormatter={(value) => `${value} m`}
+        />
+
+        <Tooltip formatter={(value: number) => [`${value.toFixed(2)} m`, "Kedalaman"]} />
+        <Legend />
+
+        {selectedSurveyIds.map((id) => (
+          <Line
+            key={id}
+            type="monotone"
+            dataKey={id}
+            name={`Survey ${id.slice(-6)}`}
+            stroke={`hsl(${Math.random() * 360}, 70%, 50%)`}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+            // ✅ Tambahkan ini agar garis tidak naik ke atas
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
 }

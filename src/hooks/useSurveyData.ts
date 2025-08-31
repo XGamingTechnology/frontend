@@ -20,7 +20,6 @@ export function useSurveyData(activeTab: "field" | "simulated") {
           const saved = localStorage.getItem("fieldSurveys");
           const parsed: SurveyGroup[] = saved ? JSON.parse(saved) : [];
           const valid = parsed.filter((s) => s.source === "import");
-          console.log("📁 [Lapangan] Survey dari localStorage:", valid);
           setSurveyGroups(valid);
         } else {
           console.log("🔍 [Simulasi] Memulai fetch data...");
@@ -40,69 +39,39 @@ export function useSurveyData(activeTab: "field" | "simulated") {
             }),
           });
 
-          console.log("📥 [Simulasi] Response diterima:", response);
           const result = await response.json();
-          console.log("📄 [Simulasi] Result JSON:", result);
-
           const features = result?.data?.spatialFeatures || [];
-          console.log("📦 [Simulasi] Jumlah features:", features.length);
 
-          if (features.length === 0) {
-            console.warn("⚠️ [Simulasi] Tidak ada data valid_sampling_point");
-            setSurveyGroups([]);
-            setLoading(false);
-            return;
-          }
-
-          // 🔍 Debug: cek beberapa item pertama
-          console.log("🔍 [Simulasi] Contoh 3 item pertama:", features.slice(0, 3));
-
-          const grouped = features.reduce((acc: Record<string, SurveyGroup>, item: any, index: number) => {
-            console.log(`🔍 [Item ${index}] Diproses:`, {
-              source: item.source,
-              meta: item.meta,
-              createdAt: item.createdAt,
-            });
-
-            // ✅ Pastikan meta ada
+          const grouped = features.reduce((acc: Record<string, SurveyGroup>, item: any) => {
             const meta = item.meta || {};
-            const surveyId = meta.survey_id || meta.surveyId;
+            const surveyId = meta.survey_id;
 
-            console.log(`🆔 surveyId dari meta:`, surveyId);
+            if (!surveyId) return acc;
 
-            // ❌ Skip jika tidak ada surveyId atau dari import
-            if (!surveyId) {
-              console.log("🚫 Dilewati: survey_id tidak ditemukan di meta");
-              return acc;
+            // ✅ Perbaiki: parse createdAt sebagai timestamp
+            let dateStr = "Tidak Diketahui";
+            try {
+              const timestamp = parseInt(item.createdAt, 10); // → 1756453930789
+              if (!isNaN(timestamp)) {
+                const date = new Date(timestamp); // ✅ new Date(1756453930789)
+                dateStr = date.toLocaleDateString("id-ID"); // → "28/8/2025"
+              }
+            } catch (err) {
+              console.error("❌ Gagal parse timestamp:", item.createdAt, err);
             }
 
-            if (item.source === "import") {
-              console.log("🚫 Dilewati: source = import");
-              return acc;
-            }
-
-            // ✅ Kelompokkan per surveyId
             if (!acc[surveyId]) {
               acc[surveyId] = {
                 surveyId,
-                date: new Date(item.createdAt).toLocaleDateString(),
+                date: dateStr,
                 source: item.source,
               };
-              console.log(`✅ [Group] Tambahkan survey:`, acc[surveyId]);
-            } else {
-              console.log(`🔁 [Group] Sudah ada:`, surveyId);
             }
-
             return acc;
           }, {});
 
           const finalGroups = Object.values(grouped);
-          console.log("✅ [Simulasi] FINAL surveyGroups:", finalGroups);
-
-          if (finalGroups.length === 0) {
-            console.warn("⚠️ [Simulasi] Tidak ada survey yang dikelompokkan. Cek: apakah meta.survey_id ada?");
-          }
-
+          console.log("✅ [Simulasi] surveyGroups SIAP:", finalGroups);
           setSurveyGroups(finalGroups);
         }
       } catch (err) {
