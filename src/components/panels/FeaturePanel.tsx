@@ -63,10 +63,14 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
     const formData = new FormData();
     formData.append("file", file);
 
+    // ✅ Kirim is3D? (Opsional: deteksi dari nama file atau input)
+    const is3D = file.name.toLowerCase().includes("3d") || file.name.toLowerCase().includes("xyz");
+    formData.append("is3D", is3D ? "true" : "false");
+
     fetch("http://localhost:5000/api/upload/echosounder", {
       method: "POST",
       body: formData,
-      headers: getAuthHeaders(), // ✅ Hanya Authorization, browser atur Content-Type
+      headers: getAuthHeaders(),
     })
       .then((res) => {
         if (!res.ok) {
@@ -76,6 +80,7 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
       })
       .then((result) => {
         console.log("✅ Upload sukses:", result);
+
         if (result.success) {
           // ✅ 1. Simpan ke localStorage sebagai riwayat upload
           const savedSurveys = JSON.parse(localStorage.getItem("fieldSurveys") || "[]");
@@ -190,8 +195,6 @@ export default function FeaturePanel({ activePanel, close }: FeaturePanelProps) 
             </button>
             <button
               onClick={() => {
-                // Buka 3D Panel → akan fetch data dari backend
-                // Data 3D dari CSV sudah disimpan dengan offset_m
                 setShow3DPanel(true);
                 close();
               }}
