@@ -1,18 +1,18 @@
 // src/app/map/page-inner.tsx
-"use client"; // 1. Pastikan ini adalah Client Component
+"use client";
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import HeaderBar from "@/components/HeaderBar";
 import SidebarLeft from "@/components/SidebarLeft";
-import SidebarRight from "@/components/SidebarRight";
 import BottomPanel from "@/components/BottomPanel";
 import FeaturePanel from "@/components/panels/FeaturePanel";
 import BasemapSwitcher from "@/components/utils/BasemapSwitcher";
 import PanelToggler from "@/components/PanelToggler";
 import SamplingBottomSidebar from "@/components/SamplingBottomSidebar";
 import { useTool } from "@/context/ToolContext";
-import Survey3DPanel from "@/components/panels/Survey3DPanel"; // ✅ Tambah ini
+import Survey3DPanel from "@/components/panels/Survey3DPanel";
+import SidebarRightControl from "@/components/panels/SidebarRightControl"; // ✅ Ganti: Gunakan kontroler mandiri
 import { Map } from "leaflet";
 
 const MapComponent = dynamic(() => import("@/components/map/MapComponent"), {
@@ -27,26 +27,27 @@ export default function MapPageInner() {
   const [leftVisible, setLeftVisible] = useState(true);
   const [bottomVisible, setBottomVisible] = useState(false);
   const [bottomHeight, setBottomHeight] = useState(300);
-  const [rightWidth, setRightWidth] = useState(384);
   const [showSamplingInfo, setShowSamplingInfo] = useState(false);
 
   const mapRef = useRef<Map | null>(null);
 
   const { showSidebarRight, setShowSidebarRight, samplingUpdatedAt, activeTool, setActiveTool } = useTool();
 
+  // Update showSamplingInfo saat ada data baru
   useEffect(() => {
     if (samplingUpdatedAt) {
       setShowSamplingInfo(true);
     }
   }, [samplingUpdatedAt]);
 
+  // Perbaiki ukuran peta saat layout berubah
   useEffect(() => {
     if (mapRef.current) {
       setTimeout(() => {
         mapRef.current?.invalidateSize();
       }, 300);
     }
-  }, [leftVisible, showSidebarRight, bottomVisible, bottomHeight, rightWidth]);
+  }, [leftVisible, showSidebarRight, bottomVisible, bottomHeight]);
 
   const handleLocateMe = () => {
     if (navigator.geolocation) {
@@ -63,10 +64,6 @@ export default function MapPageInner() {
     } else {
       alert("Geolocation tidak didukung di browser ini.");
     }
-  };
-
-  const handleEchosounderProses = () => {
-    setShowSidebarRight(true);
   };
 
   return (
@@ -116,35 +113,9 @@ export default function MapPageInner() {
           <PanelToggler onToggleLeft={() => setLeftVisible(!leftVisible)} onToggleRight={() => setShowSidebarRight((prev) => !prev)} onToggleBottom={() => setBottomVisible(!bottomVisible)} />
         </div>
 
-        {/* Sidebar Kanan */}
-        {showSidebarRight && (
-          <>
-            <div
-              onMouseDown={(e) => {
-                const startX = e.clientX;
-                const startWidth = rightWidth;
-                const handleMouseMove = (moveEvent: MouseEvent) => {
-                  const newWidth = Math.max(240, startWidth - (moveEvent.clientX - startX));
-                  setRightWidth(newWidth);
-                };
-                const handleMouseUp = () => {
-                  window.removeEventListener("mousemove", handleMouseMove);
-                  window.removeEventListener("mouseup", handleMouseUp);
-                };
-                window.addEventListener("mousemove", handleMouseMove);
-                window.addEventListener("mouseup", handleMouseUp);
-              }}
-              className="w-2 cursor-col-resize bg-gray-300 z-30"
-            />
-            <div className="bg-white border-l border-gray-200 z-20 h-full overflow-hidden" style={{ width: `${rightWidth}px` }}>
-              <SidebarRight />
-            </div>
-          </>
-        )}
-
-        {/* ✅ TAMBAHKAN Survey3DPanel DI SINI */}
-        {/* 🔥 Harus di luar semua kontainer, di level <main> */}
-        <Survey3DPanel />
+        {/* ✅ Sidebar Kanan: Gunakan SidebarRightControl yang mandiri */}
+        {/* 🔥 Tidak ada resize handle di sini lagi */}
+        {showSidebarRight && <SidebarRightControl />}
       </div>
 
       {/* Panel Bawah */}
@@ -172,6 +143,9 @@ export default function MapPageInner() {
           </div>
         </>
       )}
+
+      {/* ✅ Survey3DPanel: Harus di level terluar */}
+      <Survey3DPanel />
     </main>
   );
 }

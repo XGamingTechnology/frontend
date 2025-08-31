@@ -75,9 +75,14 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 // --- Helper: Ambil token dari localStorage ---
-const getAuthToken = () => {
+const getAuthToken = (): string | null => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("authToken");
+  try {
+    return localStorage.getItem("authToken");
+  } catch (err) {
+    console.warn("Gagal baca authToken dari localStorage:", err);
+    return null;
+  }
 };
 
 // --- Helper: Tambah header otentikasi ---
@@ -140,7 +145,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- Sinkronisasi echosounderData ke localStorage ---
   useEffect(() => {
-    if (Array.isArray(echosounderData)) {
+    if (typeof window !== "undefined" && Array.isArray(echosounderData)) {
       try {
         localStorage.setItem("echosounderData", JSON.stringify(echosounderData));
       } catch (err) {
@@ -181,6 +186,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           `,
         }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const result = await response.json();
 
@@ -229,6 +239,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           query: `{ layerDefinitions { id name description layerType source meta } }`,
         }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const result = await response.json();
       if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(", "));
@@ -378,6 +393,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }),
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       const result = await response.json();
       if (result.data?.createSpatialFeature) {
         await refreshData();
@@ -408,6 +428,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           variables: { id },
         }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const result = await response.json();
       if (result.data?.deleteSpatialFeature.success) {
@@ -452,6 +477,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const result = await response.json();
       if (result.data?.updateSpatialFeature) {
@@ -541,7 +571,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 🔥 AMBIL DATA 3D — SUDAH DIPERBAIKI
+  // 🔥 AMBIL DATA 3D — FIXED: Pakai simulatedPointsBySurveyId
   const fetchSurvey3DData = async (surveyId: string) => {
     console.log("🔧 fetchSurvey3DData dipanggil untuk:", surveyId);
 
@@ -551,10 +581,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: getAuthHeaders(),
         body: JSON.stringify({
           query: `
-            query SamplingPointsBySurveyId($surveyId: String!) {
-              samplingPointsBySurveyId(surveyId: $surveyId) {
-                id
-                geometry
+            query GetSimulatedPoints($surveyId: String!) {
+              simulatedPointsBySurveyId(surveyId: $surveyId) {
                 meta
               }
             }
@@ -563,34 +591,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }),
       });
 
-      const result = await response.json();
-      if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(", "));
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
-      const points = result.data.samplingPointsBySurveyId;
+      const text = await response.text();
+      console.log("📡 [fetchSurvey3DData] Raw response:", text);
 
-      if (!points || points.length === 0) {
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Server mengembalikan data tidak valid (bukan JSON)");
+      }
+
+      if (data.errors) {
+        console.error("❌ GraphQL Error:", data.errors);
+        throw new Error(data.errors[0]?.message || "Gagal ambil data");
+      }
+
+      const points = data.data?.simulatedPointsBySurveyId || [];
+
+      if (points.length === 0) {
+        console.log("❌ Tidak ada titik ditemukan untuk surveyId:", surveyId);
         setCurrent3DData(null);
-        console.log("❌ Tidak ada titik untuk survey:", surveyId);
         return;
       }
 
-      console.log("📊 [fetchSurvey3DData] Raw points:", points);
+      console.log("📊 [fetchSurvey3DData] Titik diterima:", points);
 
       const processedPoints: Point3D[] = points
         .map((p: any) => {
           const meta = p.meta || {};
-          const x = parseFloat(meta.distance_m);
-          const y = parseFloat(meta.offset_m);
-          const z = -Math.abs(parseFloat(meta.kedalaman ?? meta.depth_value ?? 0)); // negatif = bawah
+          const x = parseFloat(meta.distance_m ?? meta.distance ?? 0);
+          const y = parseFloat(meta.offset_m ?? 0);
+          const z = -Math.abs(parseFloat(meta.kedalaman ?? meta.depth_value ?? 0));
 
           if (isNaN(x) || isNaN(y) || isNaN(z)) {
-            console.warn("⚠️ Titik tidak valid (NaN):", p);
+            console.warn("⚠️ Titik tidak valid (NaN):", { x, y, z, meta });
             return null;
           }
 
           return { x, y, z };
         })
-        .filter((p): p is Point3D => p !== null); // Pastikan tipe aman
+        .filter((p): p is Point3D => p !== null);
 
       if (processedPoints.length === 0) {
         console.error("❌ Semua titik tidak valid setelah proses");
@@ -598,15 +643,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Urutkan agar grid rapi
       processedPoints.sort((a, b) => a.x - b.x || a.y - b.y);
 
-      setCurrent3DData({
+      const result: Survey3DData = {
         surveyId,
         points: processedPoints,
-      });
+      };
 
-      console.log("✅ current3DData diset:", { surveyId, pointCount: processedPoints.length });
+      setCurrent3DData(result);
+      console.log("✅ current3DData berhasil diset:", result);
     } catch (err: any) {
       console.error("❌ Gagal ambil data 3D:", err);
       setCurrent3DData(null);
