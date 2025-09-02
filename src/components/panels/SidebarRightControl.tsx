@@ -24,7 +24,7 @@ import { saveAs } from "file-saver";
 import { calculateCrossSectionDifference } from "@/utils/analysis";
 
 // ✅ Recharts untuk visualisasi
-import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ReferenceDot } from "recharts";
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from "recharts";
 
 // ✅ Tipe untuk perbedaan cross-section
 type Difference = {
@@ -43,28 +43,39 @@ export default function SidebarRightControl() {
   const [width, setWidth] = useState(360);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [compareMode, setCompareMode] = useState<"single" | "compare">("single");
 
   const { surveyListVersion } = useData();
   const { setShow3DPanel } = useTool();
 
-  // ✅ Data dari hook
-  const { surveyGroups, loading: loadingGroups } = useSurveyData(activeTab);
-  const { allData, loading: loadingPoints } = useSamplingPoints(selectedSurveyIds, surveyGroups);
+  // ✅ Ambil data dari kedua tab
+  const { surveyGroups: fieldGroups } = useSurveyData("field");
+  const { surveyGroups: simulatedGroups } = useSurveyData("simulated");
 
-  // Reset saat ganti tab
+  // ✅ Gabungkan semua surveyGroups untuk lookup
+  const allSurveyGroups = useMemo(() => [...fieldGroups, ...simulatedGroups], [fieldGroups, simulatedGroups]);
+
+  // ✅ Data gabungan untuk kedua tab
+  const { allData, loading: loadingPoints } = useSamplingPoints(selectedSurveyIds, allSurveyGroups);
+
+  // Reset saat ganti tab jika bukan mode compare
   useEffect(() => {
-    setSelectedSurveyIds([]);
-    setSelectedDistances([]);
-  }, [activeTab]);
+    if (compareMode === "single") {
+      setSelectedSurveyIds([]);
+      setSelectedDistances([]);
+    }
+  }, [activeTab, compareMode]);
 
   // Hitung jarak untuk cross-section
-  const allDistances = Array.from(
-    new Set(
-      Object.values(allData)
-        .flat()
-        .map((p) => Math.round(p.distance))
-    )
-  ).sort((a, b) => a - b);
+  const allDistances = useMemo(() => {
+    return Array.from(
+      new Set(
+        Object.values(allData)
+          .flat()
+          .map((p) => Math.round(p.distance))
+      )
+    ).sort((a, b) => a - b);
+  }, [allData]);
 
   // Style dinamis
   const containerStyle = {
@@ -121,19 +132,19 @@ export default function SidebarRightControl() {
 
     domtoimage
       .toBlob(chartContainer as HTMLElement, { bgcolor: "#fff", quality: 1 })
-      .then((blob) => {
+      .then((blob: Blob) => {
         const surveyNames = selectedSurveyIds.map((id) => id.slice(-6)).join("_");
         const fileName = `profil_${viewMode}_${surveyNames}_${Date.now()}.png`;
         saveAs(blob, fileName);
       })
-      .catch((err) => console.error("❌ Gagal screenshot:", err))
+      .catch((err: any) => console.error("❌ Gagal screenshot:", err))
       .finally(() => {
         (chartContainer as HTMLElement).style.background = originalBg;
         (chartContainer as HTMLElement).style.boxShadow = originalShadow;
       });
   };
 
-  // ✅ Hitung data untuk visualisasi + tabel
+  // ✅ Hitung data untuk visualisasi + tabel (untuk semua mode)
   const { changeData, summaryData, avgOverallChange, totalPoints, differences } = useMemo(() => {
     if (selectedSurveyIds.length !== 2 || selectedDistances.length === 0) {
       return {
@@ -145,7 +156,7 @@ export default function SidebarRightControl() {
       };
     }
 
-    const changes = selectedDistances.map((distance) => {
+    const changes: Array<{ distance: number; diff: number }> = selectedDistances.map((distance) => {
       const diff = calculateCrossSectionDifference(selectedSurveyIds[0], selectedSurveyIds[1], allData, distance);
       const avgDiff = diff.length === 0 ? 0 : diff.reduce((sum, d) => sum + d.diff, 0) / diff.length;
       return { distance, diff: avgDiff };
@@ -167,7 +178,6 @@ export default function SidebarRightControl() {
 
     const total = erosionCount + sedimentationCount;
 
-    // ✅ Ambil semua perubahan per titik (offset) + tambahkan jarak
     const differences: Difference[] = selectedDistances.flatMap((distance) => {
       return calculateCrossSectionDifference(selectedSurveyIds[0], selectedSurveyIds[1], allData, distance).map((d) => ({
         ...d,
@@ -187,6 +197,45 @@ export default function SidebarRightControl() {
     };
   }, [selectedSurveyIds, selectedDistances, allData]);
 
+  // ✅ PERBANDINGAN LAPANGAN VS SIMULASI (DIPERBAIKI)
+  const fieldVsSimulated = useMemo(() => {
+    if (compareMode !== "compare" || selectedSurveyIds.length !== 2) return null;
+
+    const surveySourceMap = Object.fromEntries(allSurveyGroups.map((s) => [s.surveyId, s.source]));
+
+    const [id1, id2] = selectedSurveyIds;
+    const source1 = surveySourceMap[id1];
+    const source2 = surveySourceMap[id2];
+
+    const isField1 = source1 === "import";
+    const isField2 = source2 === "import";
+
+    if (!isField1 && !isField2) return null; // bukan lapangan
+    if (isField1 && isField2) return null; // keduanya lapangan
+
+    const fieldId = isField1 ? id1 : id2;
+    const simId = isField1 ? id2 : id1;
+
+    if (surveySourceMap[simId] === "import") return null;
+
+    const commonDistance = selectedDistances.length > 0 ? selectedDistances[0] : allDistances[0];
+    const diff = calculateCrossSectionDifference(fieldId, simId, allData, commonDistance);
+    const avgDiff = diff.length === 0 ? 0 : diff.reduce((a, b) => a + b.diff, 0) / diff.length;
+
+    return {
+      fieldId,
+      simId,
+      distance: commonDistance,
+      diff,
+      avgDiff,
+    };
+  }, [compareMode, selectedSurveyIds, allSurveyGroups, allDistances, selectedDistances, allData]);
+
+  // ✅ Tentukan survey IDs untuk ditampilkan di chart
+  const displaySurveyIds = useMemo(() => {
+    return compareMode === "compare" && fieldVsSimulated ? [fieldVsSimulated.fieldId, fieldVsSimulated.simId] : selectedSurveyIds;
+  }, [compareMode, fieldVsSimulated, selectedSurveyIds]);
+
   return (
     <div style={containerStyle} className="font-sans">
       {/* Resize Handle */}
@@ -205,15 +254,27 @@ export default function SidebarRightControl() {
                 <span className="tracking-wide">Analisis Profil</span>
               </h2>
               <div className="flex items-center gap-2">
-                {/* Tab Switch */}
+                {/* Mode Compare */}
                 <div className="flex border border-slate-300 rounded text-sm overflow-hidden">
-                  <button onClick={() => setActiveTab("field")} className={`px-3 py-1 ${activeTab === "field" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
-                    Lapangan
+                  <button onClick={() => setCompareMode("single")} className={`px-3 py-1 ${compareMode === "single" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
+                    Satu Tab
                   </button>
-                  <button onClick={() => setActiveTab("simulated")} className={`px-3 py-1 ${activeTab === "simulated" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
-                    Simulasi
+                  <button onClick={() => setCompareMode("compare")} className={`px-3 py-1 ${compareMode === "compare" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
+                    Bandingkan
                   </button>
                 </div>
+
+                {/* Tab Switch (hanya aktif di mode single) */}
+                {compareMode === "single" && (
+                  <div className="flex border border-slate-300 rounded text-sm overflow-hidden">
+                    <button onClick={() => setActiveTab("field")} className={`px-3 py-1 ${activeTab === "field" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
+                      Lapangan
+                    </button>
+                    <button onClick={() => setActiveTab("simulated")} className={`px-3 py-1 ${activeTab === "simulated" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
+                      Simulasi
+                    </button>
+                  </div>
+                )}
 
                 {/* Mode Toggle */}
                 <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
@@ -242,10 +303,67 @@ export default function SidebarRightControl() {
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
             {/* Survey Selector */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-all hover:shadow-md">
-              <h3 className="text-sm font-semibold text-gray-800 mb-4">📋 Pilih Survey ({activeTab === "field" ? "Lapangan" : "Simulasi"})</h3>
-              <SurveySelector activeTab={activeTab} setActiveTab={setActiveTab} surveyGroups={surveyGroups} selectedSurveyIds={selectedSurveyIds} setSelectedSurveyIds={setSelectedSurveyIds} loading={loadingGroups} />
-            </div>
+            {compareMode === "single" ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-all hover:shadow-md">
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">📋 Pilih Survey ({activeTab === "field" ? "Lapangan" : "Simulasi"})</h3>
+                <SurveySelector
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  surveyGroups={activeTab === "field" ? fieldGroups : simulatedGroups}
+                  selectedSurveyIds={selectedSurveyIds}
+                  setSelectedSurveyIds={setSelectedSurveyIds}
+                  loading={false}
+                />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Survey Lapangan */}
+                <div key="field-selector-wrapper" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📋 Survey Lapangan</h3>
+                  <SurveySelector
+                    key={`field-selector-${selectedSurveyIds.length}`}
+                    activeTab="field"
+                    setActiveTab={() => {}}
+                    surveyGroups={fieldGroups}
+                    selectedSurveyIds={selectedSurveyIds.filter((id) => {
+                      const s = allSurveyGroups.find((g) => g.surveyId === id);
+                      return s?.source === "import";
+                    })}
+                    setSelectedSurveyIds={(newIds) => {
+                      const simIds = selectedSurveyIds.filter((id) => {
+                        const s = allSurveyGroups.find((g) => g.surveyId === id);
+                        return s?.source !== "import";
+                      });
+                      setSelectedSurveyIds([...newIds, ...simIds]);
+                    }}
+                    loading={false}
+                  />
+                </div>
+
+                {/* Survey Simulasi */}
+                <div key="simulated-selector-wrapper" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">🧪 Survey Simulasi</h3>
+                  <SurveySelector
+                    key={`simulated-selector-${selectedSurveyIds.length}`}
+                    activeTab="simulated"
+                    setActiveTab={() => {}}
+                    surveyGroups={simulatedGroups}
+                    selectedSurveyIds={selectedSurveyIds.filter((id) => {
+                      const s = allSurveyGroups.find((g) => g.surveyId === id);
+                      return s?.source !== "import";
+                    })}
+                    setSelectedSurveyIds={(newIds) => {
+                      const fieldIds = selectedSurveyIds.filter((id) => {
+                        const s = allSurveyGroups.find((g) => g.surveyId === id);
+                        return s?.source === "import";
+                      });
+                      setSelectedSurveyIds([...fieldIds, ...newIds]);
+                    }}
+                    loading={false}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Distance Selector */}
             {viewMode === "cross" && (
@@ -258,13 +376,14 @@ export default function SidebarRightControl() {
             {/* Chart Area */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
               <h3 className="text-sm font-semibold text-gray-800 mb-4">{viewMode === "longitudinal" ? "📈 Longitudinal Section" : "🔄 Cross Section"}</h3>
+
               {viewMode === "cross" && selectedDistances.length > 0 ? (
                 <div className="space-y-6">
                   {selectedDistances.map((distance) => (
                     <div key={distance} className="chart-container">
-                      <h4 className="text-xs text-gray-700 mb-2">Jarak: {distance} m</h4>
+                      <h4 className="text-xs text-gray-600 mb-2">Jarak: {distance} m</h4>
                       <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-100">
-                        <CrossSectionChart selectedSurveyIds={selectedSurveyIds} allData={allData} selectedDistance={distance} />
+                        <CrossSectionChart selectedSurveyIds={displaySurveyIds} allData={allData} selectedDistance={distance} />
                       </div>
                     </div>
                   ))}
@@ -273,10 +392,24 @@ export default function SidebarRightControl() {
                 <div className="h-72 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-100 chart-container">
                   {loadingPoints ? (
                     <p className="text-sm text-gray-500 animate-pulse">📊 Memuat data titik...</p>
-                  ) : selectedSurveyIds.length === 0 ? (
+                  ) : displaySurveyIds.length === 0 ? (
                     <p className="text-sm text-gray-400 italic">Pilih survey untuk melihat grafik.</p>
                   ) : (
-                    <LongitudinalChart selectedSurveyIds={selectedSurveyIds} allData={allData} />
+                    <>
+                      <LongitudinalChart selectedSurveyIds={displaySurveyIds} allData={allData} />
+                      {compareMode === "compare" && fieldVsSimulated && (
+                        <div className="flex gap-4 text-xs mt-2">
+                          <div className="flex items-center gap-1">
+                            <span className="w-3 h-3 bg-blue-500 rounded"></span>
+                            <span>{fieldVsSimulated.fieldId.slice(-6)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="w-3 h-3 bg-purple-500 rounded"></span>
+                            <span>{fieldVsSimulated.simId.slice(-6)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
@@ -284,12 +417,11 @@ export default function SidebarRightControl() {
               )}
             </div>
 
-            {/* ✅ ANALISIS PERUBAHAN (Visual) */}
+            {/* ✅ ANALISIS PERUBAHAN (untuk semua mode, jika 2 survey & cross) */}
             {selectedSurveyIds.length === 2 && viewMode === "cross" && selectedDistances.length > 0 && (
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-sm">
                 <h4 className="font-medium text-gray-800 mb-4">📊 Perubahan Profil (Cross-Section)</h4>
 
-                {/* Line Chart: Perubahan vs Jarak + Marker Erosi & Sedimentasi */}
                 <div className="h-48 mb-4">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={changeData}>
@@ -301,22 +433,11 @@ export default function SidebarRightControl() {
                         label={{ value: "Δ Kedalaman (m)", angle: -90, position: "insideLeft", offset: 10 }}
                       />
                       <Tooltip formatter={(value) => [`${value > 0 ? "+" : ""}${value.toFixed(2)} m`, "Perubahan"]} />
-                      <Line type="monotone" dataKey="diff" stroke="#8884d8" strokeWidth={2} dot={false} />
-
-                      {/* ✅ Marker Erosi (Merah) */}
-                      {changeData.map(
-                        (entry, index) => entry.diff < 0 && <ReferenceDot key={`erosion-${index}`} x={entry.distance} y={entry.diff} r={5} fill="red" stroke="red" strokeWidth={2} label={`-${Math.abs(entry.diff).toFixed(2)}m`} />
-                      )}
-
-                      {/* ✅ Marker Sedimentasi (Hijau) */}
-                      {changeData.map(
-                        (entry, index) => entry.diff > 0 && <ReferenceDot key={`sedimentation-${index}`} x={entry.distance} y={entry.diff} r={5} fill="green" stroke="green" strokeWidth={2} label={`+${entry.diff.toFixed(2)}m`} />
-                      )}
+                      <Line type="monotone" dataKey="diff" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
 
-                {/* Donut: Ringkasan Erosi vs Sedimentasi */}
                 <div className="flex flex-col md:flex-row gap-4 items-center">
                   <div className="h-32 w-32 mx-auto">
                     <ResponsiveContainer width="100%" height="100%">
@@ -347,7 +468,6 @@ export default function SidebarRightControl() {
                   </div>
                 </div>
 
-                {/* ✅ TABEL PERUBAHAN PER OFFSET */}
                 {differences.length > 0 && (
                   <div className="mt-6 overflow-x-auto">
                     <h5 className="text-sm font-semibold text-gray-800 mb-2">📋 Tabel Perubahan Per Titik (Offset)</h5>
@@ -381,11 +501,57 @@ export default function SidebarRightControl() {
               </div>
             )}
 
+            {/* ✅ PERBANDINGAN LAPANGAN VS SIMULASI (hanya di mode compare) */}
+            {compareMode === "compare" && fieldVsSimulated && (
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-sm">
+                <h4 className="font-medium text-gray-800 mb-4">🔍 Perbandingan Lapangan vs Simulasi</h4>
+                <p className="text-sm mb-2">
+                  <strong>Lapangan:</strong> {fieldVsSimulated.fieldId}
+                </p>
+                <p className="text-sm mb-4">
+                  <strong>Simulasi:</strong> {fieldVsSimulated.simId}
+                </p>
+                <p className="text-sm mb-4">
+                  <strong>Rata-rata perbedaan:</strong>{" "}
+                  <span className={fieldVsSimulated.avgDiff > 0 ? "text-red-600 font-bold" : "text-green-600 font-bold"}>
+                    {fieldVsSimulated.avgDiff > 0 ? "➕" : "➖"} {Math.abs(fieldVsSimulated.avgDiff).toFixed(2)} m
+                  </span>
+                </p>
+
+                <div className="overflow-x-auto">
+                  <h5 className="text-xs font-semibold text-gray-700 mb-2">📋 Perbedaan Kedalaman per Offset</h5>
+                  <table className="min-w-full text-xs border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="px-2 py-1 border text-left">Offset (m)</th>
+                        <th className="px-2 py-1 border text-left">Lapangan</th>
+                        <th className="px-2 py-1 border text-left">Simulasi</th>
+                        <th className="px-2 py-1 border text-left">Selisih (m)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fieldVsSimulated.diff.map((d) => (
+                        <tr key={d.offset} className="border-b border-gray-200">
+                          <td className="px-2 py-1 text-center">{d.offset}</td>
+                          <td className="px-2 py-1 text-center">{d.depthA.toFixed(2)}</td>
+                          <td className="px-2 py-1 text-center">{d.depthB.toFixed(2)}</td>
+                          <td className={`px-2 py-1 font-medium ${d.diff > 0 ? "text-red-600" : "text-green-600"}`}>
+                            {d.diff > 0 ? "+" : ""}
+                            {d.diff.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Statistik */}
-            {selectedSurveyIds.length > 0 && (
+            {displaySurveyIds.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 text-sm text-gray-700 space-y-2">
                 <p className="text-gray-800">
-                  <strong>✅ Survey Dipilih:</strong> {selectedSurveyIds.length}
+                  <strong>✅ Survey Dipilih:</strong> {displaySurveyIds.length}
                 </p>
                 <p className="text-gray-800">
                   <strong>📊 Total Titik:</strong> {Object.values(allData).flat().length}
@@ -400,10 +566,10 @@ export default function SidebarRightControl() {
 
             {/* 🔍 Debug Tambahan */}
             <div className="bg-gray-100 p-3 rounded text-xs space-y-1 mt-4">
-              <p className="text-gray-800">📊 Surveys: {selectedSurveyIds.length} (butuh 2)</p>
+              <p className="text-gray-800">📊 Mode: {compareMode}</p>
               <p className="text-gray-800">📍 Jarak: {selectedDistances.length}</p>
-              <p className="text-gray-800">👀 Mode: {viewMode}</p>
-              <p className="text-gray-800">✅ Analisis muncul? {selectedSurveyIds.length === 2 && viewMode === "cross" && selectedDistances.length > 0 ? "YA" : "TIDAK"}</p>
+              <p className="text-gray-800">👀 View: {viewMode}</p>
+              <p className="text-gray-800">✅ Analisis: {selectedSurveyIds.length === 2 && viewMode === "cross" && selectedDistances.length > 0 ? "YA" : "TIDAK"}</p>
             </div>
           </div>
         </div>
@@ -414,10 +580,9 @@ export default function SidebarRightControl() {
         <p>
           <strong>Debug:</strong>
         </p>
-        <p>Tab: {activeTab}</p>
-        <p>View: {viewMode}</p>
-        <p>Surveys: {surveyGroups.length}</p>
-        <p>Loading: {loadingGroups ? "Yes" : "No"}</p>
+        <p>Mode: {compareMode}</p>
+        <p>Surveys: {selectedSurveyIds.length}</p>
+        <p>Compare: {fieldVsSimulated ? "✅" : "❌"}</p>
       </div>
     </div>
   );

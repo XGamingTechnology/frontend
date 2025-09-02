@@ -55,9 +55,9 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
 
   // Mode input: lineCount, pointCount, atau fixedSpacing
   const [mode, setMode] = useState<"lineCount" | "pointCount" | "fixedSpacing">("lineCount");
-  const [lineCount, setLineCount] = useState(10);
-  const [pointCount, setPointCount] = useState(20);
-  const [spacing, setSpacing] = useState(100);
+  const [lineCount, setLineCount] = useState<number>(10);
+  const [pointCount, setPointCount] = useState<number>(20);
+  const [spacing, setSpacing] = useState<number>(100);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -73,7 +73,7 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
   // --- DRAGGABLE ---
   const panelRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 32, y: 16 }); // default posisi
+  const [position, setPosition] = useState({ x: 32, y: 16 });
 
   // Muat posisi dari localStorage
   useEffect(() => {
@@ -81,7 +81,9 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
     if (saved) {
       try {
         const pos = JSON.parse(saved);
-        setPosition(pos);
+        if (typeof pos.x === "number" && typeof pos.y === "number") {
+          setPosition(pos);
+        }
       } catch (e) {
         console.warn("Gagal baca posisi PolygonSurveyPanel");
       }
@@ -95,17 +97,13 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // ✅ Hanya tombol kiri mouse (0 = left)
     if (e.button !== 0) return;
-
     if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left;
     const offsetY = e.clientY - rect.top;
 
     setIsDragging(true);
-
-    // ✅ Prevent text selection saat drag
     e.preventDefault();
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -246,7 +244,7 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
         setIsDataReady(true);
 
         const validSampling = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point").length;
-        const matching = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point" && f.properties?.survey_id === id).length;
+        const matching = features?.features?.filter((f: any) => f.properties?.layerType === "valid_sampling_point" && f.properties?.metadata?.survey_id === id).length;
 
         setDebugInfo({
           totalFeatures: features?.features?.length || 0,
@@ -293,7 +291,7 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
         alert(data.data.deleteSurveyResults.message);
         setIsDataReady(false);
         setDebugInfo(null);
-        await refreshData(); // Refresh peta
+        await refreshData();
       } else {
         throw new Error(data.data?.deleteSurveyResults.message || "Gagal hapus hasil survey");
       }
@@ -302,14 +300,9 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
     }
   };
 
-  // --- EXPORT SAMPLING POINTS ---
-  const handleExport = async (format: "csv" | "geojson") => {
-    if (!surveyId) {
-      alert("Belum ada proses survey.");
-      return;
-    }
-
-    if (!isDataReady) {
+  // --- EXPORT KE CSV ---
+  const handleExportCSV = async () => {
+    if (!surveyId || !isDataReady) {
       alert("Data belum siap untuk diekspor.");
       return;
     }
@@ -338,34 +331,91 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
       const data = await res.json();
       const points = data.data?.samplingPointsBySurveyId;
 
-      if (!points || points.length === 0) {
+      if (!Array.isArray(points) || points.length === 0) {
         alert("⚠️ Tidak ada titik untuk diekspor.");
         return;
       }
 
-      if (format === "geojson") {
-        const geojson = {
-          type: "FeatureCollection",
-          features: points.map((p: any) => ({
-            type: "Feature",
-            id: p.id,
-            properties: { ...p, ...p.meta },
-            geometry: p.geometry,
-          })),
-        };
-        downloadFile(JSON.stringify(geojson, null, 2), `${surveyId}.geojson`, "application/json");
+      const headers = ["ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)"];
+      const rows = points.map((p: any) => {
+        const [lng, lat] = p.geometry?.coordinates || ["-", "-"];
+        return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
+      });
+
+      const csv = [headers.join(","), ...rows].join("\n");
+      downloadFile(csv, `${surveyId}.csv`, "text/csv");
+    } catch (err) {
+      alert("Gagal ambil data untuk export CSV.");
+    }
+  };
+
+  // --- EXPORT KE KML ---
+  const handleExportKML = async () => {
+    if (!surveyId || !isDataReady) {
+      alert("Data belum siap untuk diekspor.");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          query: `
+            query GetSamplingPoints($surveyId: String!) {
+              samplingPointsBySurveyId(surveyId: $surveyId) {
+                id
+                layerType
+                name
+                description
+                geometry
+                meta
+              }
+            }
+          `,
+          variables: { surveyId },
+        }),
+      });
+
+      const data = await res.json();
+      const points = data.data?.samplingPointsBySurveyId;
+
+      if (!Array.isArray(points) || points.length === 0) {
+        alert("⚠️ Tidak ada titik untuk diekspor.");
+        return;
       }
 
-      if (format === "csv") {
-        const headers = ["ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)"];
-        const rows = points.map((p: any) => {
-          const [lng, lat] = p.geometry?.coordinates || ["-", "-"];
-          return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
-        });
-        downloadFile([headers.join(","), ...rows].join("\n"), `${surveyId}.csv`, "text/csv");
-      }
+      let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Sampling Points - ${surveyId}</name>
+    <description>Titik sampling dari survei polygon dengan ID: ${surveyId}</description>
+`;
+
+      points.forEach((p: any) => {
+        const [lng, lat] = p.geometry?.coordinates || [0, 0];
+        const depth = p.meta?.kedalaman ?? 0;
+        const name = p.name || `Point ${p.id}`;
+        const description = p.description || `Kedalaman: ${depth} m`;
+
+        kml += `
+    <Placemark>
+      <name>${name}</name>
+      <description>${description}</description>
+      <Point>
+        <coordinates>${lng},${lat},0</coordinates>
+      </Point>
+    </Placemark>
+`;
+      });
+
+      kml += `
+  </Document>
+</kml>`;
+
+      downloadFile(kml, `${surveyId}.kml`, "application/vnd.google-earth.kml+xml");
     } catch (err) {
-      alert("Gagal ambil data untuk export.");
+      alert("Gagal ambil data untuk export ke KML.");
     }
   };
 
@@ -472,7 +522,10 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
                   <input
                     type="number"
                     value={lineCount}
-                    onChange={(e) => setLineCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setLineCount(isNaN(val) || val < 1 ? 1 : val);
+                    }}
                     className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     min="1"
                     placeholder="10"
@@ -482,11 +535,14 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
 
               {mode === "pointCount" && (
                 <div className="mb-3">
-                  <label className="block text-xs font-bold mb-1 text-gray-800">Jarak Antar Garis (m)</label>
+                  <label className="block text-xs font-bold mb-1 text-gray-800">Jumlah Titik per Garis</label>
                   <input
                     type="number"
                     value={pointCount}
-                    onChange={(e) => setPointCount(Math.max(2, parseInt(e.target.value) || 2))}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setPointCount(isNaN(val) || val < 2 ? 2 : val);
+                    }}
                     className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     min="2"
                     placeholder="20"
@@ -500,7 +556,10 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
                   <input
                     type="number"
                     value={spacing}
-                    onChange={(e) => setSpacing(Math.max(1, parseFloat(e.target.value) || 1))}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setSpacing(isNaN(val) || val < 1 ? 1 : val);
+                    }}
                     className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     min="1"
                     placeholder="100"
@@ -534,23 +593,23 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
                 </div>
               )}
 
-              {/* Tombol Export */}
+              {/* Tombol Export: CSV dan KML */}
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 mb-2">📤 Export Data Sampling</p>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => handleExport("csv")}
+                    onClick={handleExportCSV}
                     disabled={!isDataReady}
-                    className={`flex-1 text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-300 text-gray-500"}`}
+                    className={`text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
                   >
                     📄 CSV
                   </button>
                   <button
-                    onClick={() => handleExport("geojson")}
+                    onClick={handleExportKML}
                     disabled={!isDataReady}
-                    className={`flex-1 text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-300 text-gray-500"}`}
+                    className={`text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
                   >
-                    🌐 GeoJSON
+                    🌍 KML
                   </button>
                 </div>
               </div>

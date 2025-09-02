@@ -1,5 +1,5 @@
 // src/components/panels/controls/SurveySelector.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react"; // ✅ Tambahkan useMemo
 
 export interface SurveyGroup {
   surveyId: string;
@@ -14,43 +14,39 @@ interface Props {
   selectedSurveyIds: string[];
   setSelectedSurveyIds: (ids: string[]) => void;
   loading: boolean;
+  // ✅ Tambahkan prop untuk mode compare
+  compareMode?: "single" | "compare";
 }
 
-export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, selectedSurveyIds, setSelectedSurveyIds, loading }: Props) {
+export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, selectedSurveyIds, setSelectedSurveyIds, loading, compareMode = "single" }: Props) {
   const itemsPerPage = 5;
   const [currentPage, setCurrentPage] = useState(1);
 
-  // 🔍 Debug: cek input
+  // ✅ Filter hanya untuk tab aktif di mode single
+  // ✅ Di mode compare, tampilkan semua survey
+  const filtered = useMemo(() => {
+    if (compareMode === "compare") {
+      return surveyGroups;
+    }
+    return surveyGroups.filter((s: SurveyGroup) => (activeTab === "field" ? s.source === "import" : s.source !== "import"));
+  }, [surveyGroups, activeTab, compareMode]);
+
+  // Reset halaman ke 1 saat tab atau mode berubah
   useEffect(() => {
-    console.log("🔍 [SurveySelector] Input diterima:", {
-      activeTab,
-      surveyGroupsCount: surveyGroups.length,
-      loading,
-    });
-  }, [activeTab, surveyGroups, loading]);
-
-  // Filter hanya untuk tab aktif
-  const filtered = surveyGroups.filter((s) => (activeTab === "field" ? s.source === "import" : s.source !== "import"));
-
-  console.log("🔍 [SurveySelector] Filtered for tab:", activeTab, "→", filtered.length, "items");
+    setCurrentPage(1);
+  }, [activeTab, compareMode]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const currentSurveys = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Reset halaman saat data atau tab berubah
-  useEffect(() => {
-    setCurrentPage(1);
-    console.log("🔄 [SurveySelector] Halaman reset karena surveyGroups atau activeTab berubah");
-  }, [surveyGroups, activeTab]);
-
   // Handle select all di halaman saat ini
   const handleSelectAll = () => {
-    const currentPageIds = currentSurveys.map((s) => s.surveyId);
-    const allSelected = currentPageIds.every((id) => selectedSurveyIds.includes(id));
+    const currentPageIds = currentSurveys.map((s: SurveyGroup) => s.surveyId);
+    const allSelected = currentPageIds.every((id: string) => selectedSurveyIds.includes(id));
 
     if (allSelected) {
       // Deselect semua di halaman ini
-      setSelectedSurveyIds(selectedSurveyIds.filter((id) => !currentPageIds.includes(id)));
+      setSelectedSurveyIds(selectedSurveyIds.filter((id: string) => !currentPageIds.includes(id)));
     } else {
       // Select semua di halaman ini, hindari duplikasi
       const newIds = Array.from(new Set([...selectedSurveyIds, ...currentPageIds]));
@@ -66,8 +62,17 @@ export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, 
         <p className="text-sm text-gray-500 italic">{activeTab === "field" ? "Belum ada data lapangan." : "Tidak ada data simulasi. Pastikan data dengan layerType 'valid_sampling_point' sudah dibuat."}</p>
       ) : (
         <>
-          {/* Tab Switch (Opsional: jika ingin duplikat di dalam) */}
-          {/* Tapi biasanya di header, jadi bisa dihapus jika sudah ada di parent */}
+          {/* Tab Switch hanya muncul di mode single */}
+          {compareMode === "single" && (
+            <div className="flex border border-slate-300 rounded text-sm overflow-hidden mb-2">
+              <button onClick={() => setActiveTab("field")} className={`px-3 py-1 ${activeTab === "field" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
+                Lapangan
+              </button>
+              <button onClick={() => setActiveTab("simulated")} className={`px-3 py-1 ${activeTab === "simulated" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
+                Simulasi
+              </button>
+            </div>
+          )}
 
           {/* Tabel */}
           <div className="overflow-x-auto">
@@ -77,7 +82,7 @@ export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, 
                   <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     <input
                       type="checkbox"
-                      checked={currentSurveys.length > 0 && currentSurveys.every((s) => selectedSurveyIds.includes(s.surveyId))}
+                      checked={currentSurveys.length > 0 && currentSurveys.every((s: SurveyGroup) => selectedSurveyIds.includes(s.surveyId))}
                       onChange={handleSelectAll}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -89,7 +94,7 @@ export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, 
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {currentSurveys.map((survey) => (
+                {currentSurveys.map((survey: SurveyGroup) => (
                   <tr key={survey.surveyId} className={`transition-all hover:bg-blue-50 cursor-pointer text-sm ${selectedSurveyIds.includes(survey.surveyId) ? "bg-blue-50 border-l-4 border-blue-400" : ""}`}>
                     <td className="px-3 py-2">
                       <input
@@ -97,9 +102,12 @@ export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, 
                         checked={selectedSurveyIds.includes(survey.surveyId)}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedSurveyIds([...selectedSurveyIds, survey.surveyId]);
+                            // Hindari duplikat
+                            if (!selectedSurveyIds.includes(survey.surveyId)) {
+                              setSelectedSurveyIds([...selectedSurveyIds, survey.surveyId]);
+                            }
                           } else {
-                            setSelectedSurveyIds(selectedSurveyIds.filter((id) => id !== survey.surveyId));
+                            setSelectedSurveyIds(selectedSurveyIds.filter((id: string) => id !== survey.surveyId));
                           }
                         }}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -158,13 +166,6 @@ export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, 
       )}
 
       <p className="text-xs text-gray-500 mt-2">Centang survey untuk tampilkan profilnya.</p>
-
-      {/* 🔍 Debug: Info Tambahan (Hapus di produksi) */}
-      <div className="text-xs text-gray-400 mt-2">
-        <p>
-          <strong>Debug:</strong> Tab: {activeTab} | Surveys: {surveyGroups.length} | Filtered: {filtered.length}
-        </p>
-      </div>
     </div>
   );
 }

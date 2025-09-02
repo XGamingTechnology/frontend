@@ -27,15 +27,15 @@ export function useSurveyData(activeTab: "field" | "simulated") {
             method: "POST",
             body: JSON.stringify({
               query: `
-                query GetSimulatedSurveys {
-                  spatialFeatures(layerType: "valid_sampling_point") {
-                    meta
-                    source
-                    createdAt
-                    name
+                  query GetSimulatedSurveys {
+                    spatialFeatures(layerType: "valid_sampling_point") {
+                      meta
+                      source
+                      createdAt
+                      name
+                    }
                   }
-                }
-              `,
+                `,
             }),
           });
 

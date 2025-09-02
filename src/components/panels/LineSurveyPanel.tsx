@@ -53,14 +53,13 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
   const { refreshData, features } = useData();
   const { surveyMode } = useTool();
 
-  const [spasi, setSpasi] = useState(100);
-  const [panjang, setPanjang] = useState(300);
+  const [spasi, setSpasi] = useState<number>(100);
+  const [panjang, setPanjang] = useState<number>(300);
   const [selectedAreaId, setSelectedAreaId] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [areaOptions, setAreaOptions] = useState<Array<{ id: number; name: string }>>([]);
   const [isDataReady, setIsDataReady] = useState(false);
   const [surveyId, setSurveyId] = useState<string | null>(null);
-  // ❌ show3DPanel dihapus
 
   // Debug: info jumlah titik
   const [debugInfo, setDebugInfo] = useState<{
@@ -80,7 +79,9 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     if (saved) {
       try {
         const pos = JSON.parse(saved);
-        setPosition(pos);
+        if (typeof pos.x === "number" && typeof pos.y === "number") {
+          setPosition(pos);
+        }
       } catch (e) {
         console.warn("Gagal baca posisi LineSurveyPanel");
       }
@@ -152,28 +153,38 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
         });
 
         const text = await res.text();
+        console.log("🔍 Raw GraphQL Response:", text); // 🔍 Debug
+
         let data;
         try {
           data = JSON.parse(text);
         } catch (e) {
-          throw new Error("Server mengembalikan data tidak valid");
+          throw new Error("Server mengembalikan data tidak valid (bukan JSON)");
         }
 
-        if (data.errors) throw new Error(data.errors[0].message);
+        if (data.errors) {
+          console.error("GraphQL Errors:", data.errors);
+          throw new Error(data.errors[0].message || "GraphQL error");
+        }
 
-        if (data.data?.layerOptions) {
-          setAreaOptions(data.data.layerOptions);
-          if (!selectedAreaId && data.data.layerOptions.length > 0) {
-            setSelectedAreaId(data.data.layerOptions[0].id);
+        const options = data.data?.layerOptions;
+
+        if (Array.isArray(options)) {
+          setAreaOptions(options);
+          if (!selectedAreaId && options.length > 0) {
+            setSelectedAreaId(options[0].id);
           }
         } else {
-          throw new Error("Tidak ada data area");
+          console.error("layerOptions bukan array:", options);
+          setAreaOptions([]);
+          alert("Data area tidak valid: format salah dari server.");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("❌ Gagal muat area:", err);
-        alert("Gagal memuat daftar area.");
+        alert("Gagal memuat daftar area. Cek koneksi atau login ulang.");
       }
     };
+
     fetchAreas();
   }, [selectedAreaId]);
 
@@ -300,8 +311,8 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     }
   };
 
-  // --- EXPORT SAMPLING POINTS ---
-  const handleExport = async (format: "csv" | "geojson") => {
+  // --- EXPORT KE CSV ---
+  const handleExportCSV = async () => {
     if (!surveyId || !isDataReady) return alert("Data belum siap untuk diekspor.");
 
     try {
@@ -328,31 +339,86 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
       const data = await res.json();
       const points = data.data?.samplingPointsBySurveyId;
 
-      if (!points || points.length === 0) return alert("⚠️ Tidak ada titik untuk diekspor.");
-
-      if (format === "geojson") {
-        const geojson = {
-          type: "FeatureCollection",
-          features: points.map((p: any) => ({
-            type: "Feature",
-            id: p.id,
-            properties: { ...p, ...p.meta },
-            geometry: p.geometry,
-          })),
-        };
-        downloadFile(JSON.stringify(geojson, null, 2), `${surveyId}.geojson`, "application/json");
+      if (!Array.isArray(points) || points.length === 0) {
+        return alert("⚠️ Tidak ada titik untuk diekspor.");
       }
 
-      if (format === "csv") {
-        const headers = ["ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)"];
-        const rows = points.map((p: any) => {
-          const [lng, lat] = p.geometry?.coordinates || ["-", "-"];
-          return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.depth_value ?? p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
-        });
-        downloadFile([headers.join(","), ...rows].join("\n"), `${surveyId}.csv`, "text/csv");
-      }
+      const headers = ["ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)"];
+      const rows = points.map((p: any) => {
+        const [lng, lat] = p.geometry?.coordinates || ["-", "-"];
+        return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.depth_value ?? p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
+      });
+
+      const csvContent = [headers.join(","), ...rows].join("\n");
+      downloadFile(csvContent, `${surveyId}.csv`, "text/csv");
     } catch (err) {
-      alert("Gagal ambil data untuk export.");
+      alert("Gagal ambil data untuk export CSV.");
+    }
+  };
+
+  // --- EXPORT KE KML ---
+  const handleExportKML = async () => {
+    if (!surveyId || !isDataReady) return alert("Data belum siap untuk diekspor.");
+
+    try {
+      const res = await fetch("http://localhost:5000/graphql", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          query: `
+            query GetSamplingPoints($surveyId: String!) {
+              samplingPointsBySurveyId(surveyId: $surveyId) {
+                id
+                layerType
+                name
+                description
+                geometry
+                meta
+              }
+            }
+          `,
+          variables: { surveyId },
+        }),
+      });
+
+      const data = await res.json();
+      const points = data.data?.samplingPointsBySurveyId;
+
+      if (!Array.isArray(points) || points.length === 0) {
+        return alert("⚠️ Tidak ada titik untuk diekspor.");
+      }
+
+      let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Sampling Points - ${surveyId}</name>
+    <description>Titik sampling dari survei sungai dengan ID: ${surveyId}</description>
+`;
+
+      points.forEach((p: any) => {
+        const [lng, lat] = p.geometry?.coordinates || [0, 0];
+        const depth = p.meta?.depth_value ?? p.meta?.kedalaman ?? 0;
+        const name = p.name || `Point ${p.id}`;
+        const description = p.description || `Kedalaman: ${depth} m`;
+
+        kml += `
+    <Placemark>
+      <name>${name}</name>
+      <description>${description}</description>
+      <Point>
+        <coordinates>${lng},${lat},0</coordinates>
+      </Point>
+    </Placemark>
+`;
+      });
+
+      kml += `
+  </Document>
+</kml>`;
+
+      downloadFile(kml, `${surveyId}.kml`, "application/vnd.google-earth.kml+xml");
+    } catch (err) {
+      alert("Gagal ambil data untuk export ke KML.");
     }
   };
 
@@ -374,7 +440,7 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     setSurveyId(null);
     setSpasi(100);
     setPanjang(300);
-    if (areaOptions.length > 0) {
+    if (Array.isArray(areaOptions) && areaOptions.length > 0) {
       setSelectedAreaId(areaOptions[0].id);
     }
   };
@@ -385,25 +451,14 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     decodeToken(token);
   }, []);
 
-  // ✅ Ambil titik sampling untuk 3D — dari valid_sampling_point & metadata
+  // ✅ Ambil titik sampling untuk 3D
   const samplingPoints = useMemo(() => {
     if (!surveyId || !features?.features) return [];
 
     return features.features
       .filter((f) => {
-        // ✅ Coba semua kemungkinan layerType
         const isValidType = f.properties?.layerType === "valid_sampling_point" || f.properties?.layerType === "batimetri";
-
-        // ✅ Ambil survey_id dari metadata
         const hasSurveyId = f.properties?.metadata?.survey_id === surveyId;
-
-        if (!isValidType) {
-          console.log("❌ LayerType salah:", f.properties?.layerType);
-        }
-        if (!hasSurveyId) {
-          console.log("❌ Survey ID tidak cocok:", f.properties?.metadata?.survey_id);
-        }
-
         return isValidType && hasSurveyId;
       })
       .map((f) => {
@@ -480,7 +535,10 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
                   <input
                     type="number"
                     value={spasi}
-                    onChange={(e) => setSpasi(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setSpasi(isNaN(val) || val < 1 ? 1 : val);
+                    }}
                     className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     min="1"
                     placeholder="100"
@@ -491,7 +549,10 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
                   <input
                     type="number"
                     value={panjang}
-                    onChange={(e) => setPanjang(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setPanjang(isNaN(val) || val < 1 ? 1 : val);
+                    }}
                     className="w-full p-1 bg-white border border-gray-600 rounded text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     min="1"
                     placeholder="300"
@@ -507,11 +568,15 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
                   className="w-full p-2 bg-white border border-gray-600 rounded text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">-- Pilih --</option>
-                  {areaOptions.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.name}
-                    </option>
-                  ))}
+                  {Array.isArray(areaOptions) ? (
+                    areaOptions.map((area) => (
+                      <option key={area.id} value={area.id}>
+                        {area.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>⚠️ Gagal muat data</option>
+                  )}
                 </select>
               </div>
 
@@ -541,23 +606,23 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
                 </div>
               )}
 
-              {/* Tombol Export */}
+              {/* Tombol Export: CSV dan KML */}
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 mb-2">📤 Export Data Sampling</p>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => handleExport("csv")}
+                    onClick={handleExportCSV}
                     disabled={!isDataReady}
-                    className={`flex-1 text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-300 text-gray-500"}`}
+                    className={`text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
                   >
                     📄 CSV
                   </button>
                   <button
-                    onClick={() => handleExport("geojson")}
+                    onClick={handleExportKML}
                     disabled={!isDataReady}
-                    className={`flex-1 text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-300 text-gray-500"}`}
+                    className={`text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
                   >
-                    🌐 GeoJSON
+                    🌍 KML
                   </button>
                 </div>
               </div>
