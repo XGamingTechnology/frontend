@@ -572,46 +572,87 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // 🔥 AMBIL DATA 3D — FIXED: Pakai simulatedPointsBySurveyId
+  // 🔥 AMBIL DATA 3D — UNIVERSAL: Untuk LAPANGAN & SIMULASI
   const fetchSurvey3DData = async (surveyId: string) => {
     console.log("🔧 fetchSurvey3DData dipanggil untuk:", surveyId);
 
     try {
-      const response = await fetch("http://localhost:5000/graphql", {
+      // ✅ 1. Cek dulu apakah data dari "lapangan" atau "simulasi"
+      const checkQuery = `
+      query CheckSurveySource($surveyId: String!) {
+        spatialFeatures(
+          layerType: "valid_sampling_point"
+          source: $surveyId
+        ) {
+          meta
+        }
+      }
+    `;
+
+      const checkResponse = await fetch("http://localhost:5000/graphql", {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          query: `
-            query GetSimulatedPoints($surveyId: String!) {
-              simulatedPointsBySurveyId(surveyId: $surveyId) {
-                meta
-              }
-            }
-          `,
+          query: checkQuery,
           variables: { surveyId },
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      const checkResult = await checkResponse.json();
+      const pointsCheck = checkResult.data?.spatialFeatures || [];
+
+      // ✅ Tentukan apakah data lapangan (import) atau simulasi
+      const isFieldData = pointsCheck.some((p: any) => p.meta?.source === "import" || p.meta?.sequence !== undefined);
+
+      let points: any[] = [];
+
+      if (isFieldData) {
+        // 🟢 Data Lapangan: pakai fieldSurveyPointsBySurveyId
+        console.log("🔍 [3D] Data lapangan terdeteksi");
+        const fieldQuery = `
+        query GetFieldPoints($surveyId: String!) {
+          fieldSurveyPointsBySurveyId(surveyId: $surveyId) {
+            meta
+          }
+        }
+      `;
+
+        const res = await fetch("http://localhost:5000/graphql", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            query: fieldQuery,
+            variables: { surveyId },
+          }),
+        });
+
+        const result = await res.json();
+        if (result.errors) throw new Error(result.errors[0]?.message || "Gagal ambil data lapangan");
+        points = result.data?.fieldSurveyPointsBySurveyId || [];
+      } else {
+        // 🔵 Data Simulasi: pakai samplingPointsBySurveyId (lebih akurat)
+        console.log("🔍 [3D] Data simulasi terdeteksi");
+        const simQuery = `
+        query GetSamplingPoints($surveyId: String!) {
+          samplingPointsBySurveyId(surveyId: $surveyId) {
+            meta
+          }
+        }
+      `;
+
+        const res = await fetch("http://localhost:5000/graphql", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            query: simQuery,
+            variables: { surveyId },
+          }),
+        });
+
+        const result = await res.json();
+        if (result.errors) throw new Error(result.errors[0]?.message || "Gagal ambil data simulasi");
+        points = result.data?.samplingPointsBySurveyId || [];
       }
-
-      const text = await response.text();
-      console.log("📡 [fetchSurvey3DData] Raw response:", text);
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error("Server mengembalikan data tidak valid (bukan JSON)");
-      }
-
-      if (data.errors) {
-        console.error("❌ GraphQL Error:", data.errors);
-        throw new Error(data.errors[0]?.message || "Gagal ambil data");
-      }
-
-      const points = data.data?.simulatedPointsBySurveyId || [];
 
       if (points.length === 0) {
         console.log("❌ Tidak ada titik ditemukan untuk surveyId:", surveyId);
@@ -621,12 +662,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log("📊 [fetchSurvey3DData] Titik diterima:", points);
 
+      // ✅ Proses semua titik ke format 3D
       const processedPoints: Point3D[] = points
         .map((p: any) => {
           const meta = p.meta || {};
-          const x = parseFloat(meta.distance_m ?? meta.distance ?? 0);
-          const y = parseFloat(meta.offset_m ?? 0);
-          const z = -Math.abs(parseFloat(meta.kedalaman ?? meta.depth_value ?? 0));
+
+          // Prioritas jarak: distance_from_start > distance_m > jarak
+          const xRaw = meta.distance_from_start ?? meta.distance_m ?? meta.jarak ?? meta.distance ?? 0;
+          const x = parseFloat(xRaw);
+
+          // Prioritas offset: offset_m > offset
+          const yRaw = meta.offset_m ?? meta.offset ?? 0;
+          const y = parseFloat(yRaw);
+
+          // Prioritas kedalaman: depth_value > kedalaman > depth
+          const zRaw = meta.depth_value ?? meta.kedalaman ?? meta.depth ?? 0;
+          const z = -Math.abs(parseFloat(zRaw)); // negatif = lebih dalam
 
           if (isNaN(x) || isNaN(y) || isNaN(z)) {
             console.warn("⚠️ Titik tidak valid (NaN):", { x, y, z, meta });
@@ -637,12 +688,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .filter((p): p is Point3D => p !== null);
 
+      console.log("✅ Titik valid setelah proses:", processedPoints);
+
       if (processedPoints.length === 0) {
         console.error("❌ Semua titik tidak valid setelah proses");
         setCurrent3DData(null);
         return;
       }
 
+      // ✅ Urutkan agar interpolasi halus
       processedPoints.sort((a, b) => a.x - b.x || a.y - b.y);
 
       const result: Survey3DData = {

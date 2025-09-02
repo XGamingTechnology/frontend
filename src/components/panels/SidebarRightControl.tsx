@@ -476,8 +476,10 @@ export default function SidebarRightControl() {
                         <tr className="bg-gray-100">
                           <th className="px-3 py-2 border-b text-left text-gray-800">Jarak (m)</th>
                           <th className="px-3 py-2 border-b text-left text-gray-800">Offset (m)</th>
-                          <th className="px-3 py-2 border-b text-left text-gray-800">Survey A</th>
-                          <th className="px-3 py-2 border-b text-left text-gray-800">Survey B</th>
+                          {/* ✅ Ganti "Survey A" dengan ID asli */}
+                          <th className="px-3 py-2 border-b text-left text-gray-800">Survey {selectedSurveyIds[0]?.slice(-8).toUpperCase() ?? "Survey 1"}</th>
+                          {/* ✅ Ganti "Survey B" dengan ID asli */}
+                          <th className="px-3 py-2 border-b text-left text-gray-800">Survey {selectedSurveyIds[1]?.slice(-8).toUpperCase() ?? "Survey 2"}</th>
                           <th className="px-3 py-2 border-b text-left text-gray-800">Selisih (m)</th>
                         </tr>
                       </thead>
@@ -503,39 +505,61 @@ export default function SidebarRightControl() {
 
             {/* ✅ PERBANDINGAN LAPANGAN VS SIMULASI (hanya di mode compare) */}
             {compareMode === "compare" && fieldVsSimulated && (
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-sm">
-                <h4 className="font-medium text-gray-800 mb-4">🔍 Perbandingan Lapangan vs Simulasi</h4>
-                <p className="text-sm mb-2">
-                  <strong>Lapangan:</strong> {fieldVsSimulated.fieldId}
-                </p>
-                <p className="text-sm mb-4">
-                  <strong>Simulasi:</strong> {fieldVsSimulated.simId}
-                </p>
-                <p className="text-sm mb-4">
-                  <strong>Rata-rata perbedaan:</strong>{" "}
-                  <span className={fieldVsSimulated.avgDiff > 0 ? "text-red-600 font-bold" : "text-green-600 font-bold"}>
-                    {fieldVsSimulated.avgDiff > 0 ? "➕" : "➖"} {Math.abs(fieldVsSimulated.avgDiff).toFixed(2)} m
-                  </span>
-                </p>
+              <div className="bg-gradient-to-br from-green-50 to-blue-50 p-4 rounded-lg border border-green-200 text-sm shadow-sm">
+                <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">🔍</span>
+                  Perbandingan: Lapangan vs Simulasi
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">
+                  <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">📍 Data Lapangan</p>
+                    <p className="font-mono text-blue-900 text-sm truncate">
+                      <strong>ID:</strong> {fieldVsSimulated.fieldId.slice(-8).toUpperCase()}
+                    </p>
+                  </div>
+
+                  <div className="bg-purple-50 p-3 rounded border border-purple-200">
+                    <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-1">🧪 Data Simulasi</p>
+                    <p className="font-mono text-purple-900 text-sm truncate">
+                      <strong>ID:</strong> {fieldVsSimulated.simId.slice(-8).toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
+                  <p className="text-sm">
+                    <strong>📉 Rata-rata perbedaan:</strong>{" "}
+                    <span className={Math.abs(fieldVsSimulated.avgDiff) > 0.5 ? "text-red-600 font-bold" : Math.abs(fieldVsSimulated.avgDiff) > 0.2 ? "text-yellow-600 font-bold" : "text-green-600 font-bold"}>
+                      {fieldVsSimulated.avgDiff > 0 ? "⬆️" : "⬇️"} {Math.abs(fieldVsSimulated.avgDiff).toFixed(2)} m
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">{fieldVsSimulated.avgDiff > 0 ? "Simulasi lebih dangkal" : fieldVsSimulated.avgDiff < 0 ? "Simulasi lebih dalam" : "Sangat akurat!"}</p>
+                </div>
 
                 <div className="overflow-x-auto">
-                  <h5 className="text-xs font-semibold text-gray-700 mb-2">📋 Perbedaan Kedalaman per Offset</h5>
-                  <table className="min-w-full text-xs border border-gray-300">
+                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">📊 Perbedaan Kedalaman per Offset</h5>
+                  <table className="min-w-full text-xs border border-gray-300 divide-y divide-gray-200">
                     <thead>
-                      <tr className="bg-gray-100">
-                        <th className="px-2 py-1 border text-left">Offset (m)</th>
-                        <th className="px-2 py-1 border text-left">Lapangan</th>
-                        <th className="px-2 py-1 border text-left">Simulasi</th>
-                        <th className="px-2 py-1 border text-left">Selisih (m)</th>
+                      <tr className="bg-gray-50">
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Offset (m)</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase">Lapangan</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-purple-700 uppercase">Simulasi</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Selisih (m)</th>
                       </tr>
                     </thead>
                     <tbody>
                       {fieldVsSimulated.diff.map((d) => (
-                        <tr key={d.offset} className="border-b border-gray-200">
-                          <td className="px-2 py-1 text-center">{d.offset}</td>
-                          <td className="px-2 py-1 text-center">{d.depthA.toFixed(2)}</td>
-                          <td className="px-2 py-1 text-center">{d.depthB.toFixed(2)}</td>
-                          <td className={`px-2 py-1 font-medium ${d.diff > 0 ? "text-red-600" : "text-green-600"}`}>
+                        <tr key={d.offset} className="hover:bg-gray-50 transition-colors duration-100">
+                          <td className="px-3 py-2 text-center font-mono text-gray-800">{d.offset}</td>
+                          <td className="px-3 py-2 text-center font-mono text-blue-700">{d.depthA.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-center font-mono text-purple-700">{d.depthB.toFixed(2)}</td>
+                          <td
+                            className={`px-3 py-2 font-medium text-center ${
+                              d.diff > 0.5 ? "text-red-600 bg-red-50" : d.diff < -0.5 ? "text-blue-600 bg-blue-50" : d.diff > 0 ? "text-orange-600 bg-orange-50" : d.diff < 0 ? "text-green-600 bg-green-50" : "text-gray-600 bg-gray-100"
+                            }`}
+                            title={d.diff > 0 ? "Simulasi lebih dangkal" : d.diff < 0 ? "Simulasi lebih dalam" : "Sama"}
+                          >
                             {d.diff > 0 ? "+" : ""}
                             {d.diff.toFixed(2)}
                           </td>
@@ -544,6 +568,12 @@ export default function SidebarRightControl() {
                     </tbody>
                   </table>
                 </div>
+
+                <p className="text-xs text-gray-500 mt-3 italic">
+                  💡 Selisih positif (+): simulasi lebih dangkal dari lapangan
+                  <br />
+                  💡 Selisih negatif (-): simulasi lebih dalam dari lapangan
+                </p>
               </div>
             )}
 

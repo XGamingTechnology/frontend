@@ -1,5 +1,9 @@
 // src/components/panels/controls/SurveySelector.tsx
-import { useState, useEffect, useMemo } from "react"; // ✅ Tambahkan useMemo
+import { useState, useEffect, useMemo } from "react";
+
+// Context
+import { useData } from "@/context/DataContext";
+import { useTool } from "@/context/ToolContext";
 
 export interface SurveyGroup {
   surveyId: string;
@@ -21,6 +25,10 @@ interface Props {
 export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, selectedSurveyIds, setSelectedSurveyIds, loading, compareMode = "single" }: Props) {
   const itemsPerPage = 5;
   const [currentPage, setCurrentPage] = useState(1);
+
+  // ✅ Ambil context
+  const { fetchSurvey3DData } = useData();
+  const { setShow3DPanel } = useTool();
 
   // ✅ Filter hanya untuk tab aktif di mode single
   // ✅ Di mode compare, tampilkan semua survey
@@ -122,7 +130,10 @@ export default function SurveySelector({ activeTab, setActiveTab, surveyGroups, 
                       <button
                         onClick={() => {
                           console.log("🚀 [SurveySelector] Buka 3D untuk:", survey.surveyId);
-                          // Di sini bisa panggil setShow3DPanel atau buka modal
+                          // ✅ 1. Ambil data 3D
+                          fetchSurvey3DData(survey.surveyId);
+                          // ✅ 2. Buka modal
+                          setShow3DPanel(true);
                         }}
                         className="text-xs px-2 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded hover:from-purple-600 hover:to-blue-600 transition shadow-sm"
                       >

@@ -75,7 +75,8 @@ export default function Survey3DPanel() {
       </div>
     );
   }
-
+  console.log("🔧 [Survey3DPanel] show3DPanel =", show3DPanel);
+  console.log("🔧 [Survey3DPanel] current3DData =", current3DData);
   // ✅ Render 3D
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
