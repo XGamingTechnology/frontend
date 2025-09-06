@@ -1,5 +1,5 @@
 // src/components/panels/charts/CrossSectionChart.tsx
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from "recharts";
 
 interface Props {
   selectedSurveyIds: string[];
@@ -17,8 +17,8 @@ const getColor = (id: string) => {
   return `hsl(${hue}, 70%, 50%)`;
 };
 
-// ✅ Interpolasi linear
-const interpolateDepth = (points: { distance: number; depth: number }[], targetDistance: number): number | null => {
+// ✅ Interpolasi linear berdasarkan jarak (distance)
+const interpolateDepthAtDistance = (points: { distance: number; depth: number }[], targetDistance: number): number | null => {
   if (points.length === 0) return null;
 
   const sorted = [...points].sort((a, b) => a.distance - b.distance);
@@ -34,12 +34,17 @@ const interpolateDepth = (points: { distance: number; depth: number }[], targetD
   return low.depth + ratio * (high!.depth - low.depth);
 };
 
+// ✅ Format X-axis: STA-00 berdasarkan jarak
+const formatStation = (distance: number) => {
+  const station = Math.floor(distance / 5); // 5m per STA
+  return `STA-${station.toString().padStart(2, "0")}`;
+};
+
 export default function CrossSectionChart({ selectedSurveyIds, allData, selectedDistance }: Props) {
   if (!selectedDistance) {
     return <p className="text-sm text-gray-400 italic">Pilih jarak untuk cross-section.</p>;
   }
 
-  // ✅ Hilangkan duplikat ID
   const uniqueIds = Array.from(new Set(selectedSurveyIds));
 
   // ✅ Ambil semua offset unik dari semua survey
@@ -58,28 +63,30 @@ export default function CrossSectionChart({ selectedSurveyIds, allData, selected
 
   // ✅ Siapkan data untuk chart
   const chartData = allOffsets.map((offset) => {
-    const dataPoint: { offset: number } & Record<string, number | null> = { offset };
+    const dataPoint: { offset: number } & Record<string, number | null> = {
+      offset,
+    };
 
     uniqueIds.forEach((id) => {
       const points = allData[id] || [];
-      // Filter titik yang dekat dengan offset ini
-      const nearbyPoints = points.filter((p) => Math.abs(p.offset - offset) <= 1);
+      const pointsAtOffset = points.filter((p) => Math.abs(p.offset - offset) <= 0.5);
 
-      if (nearbyPoints.length === 0) {
+      if (pointsAtOffset.length === 0) {
         dataPoint[id] = null;
       } else {
-        // Interpolasi kedalaman di selectedDistance
-        const depth = interpolateDepth(
-          nearbyPoints.map((p) => ({ distance: p.distance, depth: p.depth })),
-          selectedDistance
-        );
-        dataPoint[id] = depth;
+        const depths = pointsAtOffset.map((p) => ({
+          distance: p.distance,
+          depth: Math.abs(p.depth),
+        }));
+        const depth = interpolateDepthAtDistance(depths, selectedDistance);
+        dataPoint[id] = depth !== null ? depth : null;
       }
     });
 
     return dataPoint;
   });
 
+  // ✅ Cek data valid
   if (
     chartData.every((d) =>
       Object.values(d)
@@ -90,50 +97,102 @@ export default function CrossSectionChart({ selectedSurveyIds, allData, selected
     return <p className="text-sm text-gray-400 italic">Tidak ada data di jarak ini setelah interpolasi.</p>;
   }
 
+  // ✅ Hitung domain Y
+  const allDepths = chartData.flatMap((d) => Object.values(d).slice(1)).filter((v): v is number => v !== null);
+  const maxDepth = allDepths.length > 0 ? Math.max(...allDepths) : 0;
+  const yDomain = [0, Math.ceil(maxDepth + 0.5)];
+
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 30 }}>
-        <CartesianGrid strokeDasharray="3 3" />
+      <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 40 }} fontFamily="monospace">
+        {/* Grid halus */}
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={true} vertical={false} />
 
-        {/* X: Offset (kiri-kanan) */}
+        {/* X: OFFSET */}
         <XAxis
           dataKey="offset"
+          tick={{
+            fontSize: 12,
+            fill: "#1e293b",
+            fontFamily: "monospace",
+            fontWeight: 500,
+          }}
+          axisLine={{ stroke: "#64748b", strokeWidth: 1 }}
+          tickLine={{ stroke: "#64748b", strokeWidth: 1 }}
           label={{
-            value: "Offset Melintang (m)",
+            value: "OFFSET",
             position: "insideBottom",
-            dy: 14,
+            dy: 24,
+            fontSize: 14,
+            fontWeight: 600,
+            fill: "#1e293b",
+            fontFamily: "monospace",
           }}
         />
 
-        {/* Y: Kedalaman */}
+        {/* Y: EXISTING ELEVATIONS */}
         <YAxis
-          domain={[0, "dataMax"]}
+          domain={yDomain}
+          ticks={Array.from({ length: yDomain[1] + 1 }, (_, i) => i)}
+          tickFormatter={(value) => `${value.toFixed(1)} m`}
+          tick={{
+            fontSize: 12,
+            fill: "#1e293b",
+            fontFamily: "monospace",
+            fontWeight: 500,
+          }}
+          axisLine={{ stroke: "#64748b", strokeWidth: 1 }}
+          tickLine={{ stroke: "#64748b", strokeWidth: 1 }}
           label={{
-            value: "Kedalaman (m)",
+            value: "EXISTING ELEVATIONS",
             angle: -90,
             position: "insideLeft",
-            dx: -5,
+            dx: -24,
+            fontSize: 14,
+            fontWeight: 600,
+            fill: "#1e293b",
+            fontFamily: "monospace",
           }}
-          tickFormatter={(value) => `${value.toFixed(2)} m`}
         />
 
-        {/* ✅ Tooltip: Perbaiki tipe */}
+        {/* Garis vertikal untuk setiap titik pengukuran */}
+        {allOffsets.map((offset) => (
+          <ReferenceLine key={`ref-${offset}`} x={offset} stroke="#e5e7eb" strokeWidth={1} strokeDasharray="5 5" />
+        ))}
+
+        {/* Tooltip: Tampilkan STA dan offset */}
         <Tooltip
           formatter={(value: any, name: string) => {
-            if (value == null || isNaN(value)) {
-              return ["Tidak tersedia", name];
-            }
+            if (value == null || isNaN(value)) return ["Tidak tersedia", name];
             const num = Number(value);
             return isNaN(num) ? ["Tidak valid", name] : [`${num.toFixed(2)} m`, name];
           }}
-          labelFormatter={(label) => `Offset: ${label} m`}
+          labelFormatter={(label) => `Offset: ${label} m | ${formatStation(selectedDistance)}`}
+          contentStyle={{
+            borderRadius: 6,
+            border: "1px solid #cbd5e1",
+            backgroundColor: "#fff",
+            fontFamily: "monospace",
+            fontSize: 12,
+          }}
         />
 
-        <Legend />
+        {/* Legenda di atas */}
+        <Legend
+          verticalAlign="top"
+          height={36}
+          wrapperStyle={{
+            fontSize: 12,
+            fontFamily: "monospace",
+            fontWeight: 500,
+            paddingLeft: 10,
+          }}
+          formatter={(value) => `Survey ${value.slice(-6)}`}
+        />
 
-        {/* ✅ Render garis untuk setiap survey */}
+        {/* Garis untuk setiap survey */}
         {uniqueIds.map((id) => (
-          <Line key={id} type="monotone" dataKey={id} name={`Survey ${id.slice(-6)}`} stroke={getColor(id)} dot={{ r: 3 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+          <Line key={id} type="monotone" dataKey={id} name={id} stroke={getColor(id)} strokeWidth={2.5} dot={{ r: 3, fill: getColor(id) }} activeDot={{ r: 6, strokeWidth: 2 }} isAnimationActive={false} />
         ))}
       </LineChart>
     </ResponsiveContainer>

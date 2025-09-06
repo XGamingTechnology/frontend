@@ -5,7 +5,7 @@ import { fetchWithAuth } from "@/lib/apiClient";
 export interface SurveyGroup {
   surveyId: string;
   date: string;
-  source: string;
+  source: "import" | "simulated" | "processed"; // ✅ Bedakan sumber data
 }
 
 export function useSurveyData(activeTab: "field" | "simulated") {
@@ -17,29 +17,40 @@ export function useSurveyData(activeTab: "field" | "simulated") {
       setLoading(true);
       try {
         if (activeTab === "field") {
+          // 🔹 Data lapangan: hasil upload CSV
+          console.log("🔍 [Field] Memuat data dari localStorage...");
           const saved = localStorage.getItem("fieldSurveys");
           const parsed: SurveyGroup[] = saved ? JSON.parse(saved) : [];
           const valid = parsed.filter((s) => s.source === "import");
+
+          console.log("✅ [Field] Data upload siap:", valid);
           setSurveyGroups(valid);
         } else {
-          console.log("🔍 [Simulasi] Memulai fetch data...");
+          // 🔹 Data simulasi: hasil dari process_survey / generate_survey
+          console.log("🔍 [Simulasi] Memulai fetch data dari DB...");
           const response = await fetchWithAuth("http://localhost:5000/graphql", {
             method: "POST",
             body: JSON.stringify({
               query: `
-                  query GetSimulatedSurveys {
-                    spatialFeatures(layerType: "valid_sampling_point") {
-                      meta
-                      source
-                      createdAt
-                      name
-                    }
+                query GetSimulatedSurveys {
+                  spatialFeatures(layerType: "valid_sampling_point") {
+                    meta
+                    source
+                    createdAt
                   }
-                `,
+                }
+              `,
             }),
           });
 
           const result = await response.json();
+          if (result.errors) {
+            console.error("❌ GraphQL Error:", result.errors);
+            setSurveyGroups([]);
+            setLoading(false);
+            return;
+          }
+
           const features = result?.data?.spatialFeatures || [];
 
           const grouped = features.reduce((acc: Record<string, SurveyGroup>, item: any) => {
@@ -48,23 +59,21 @@ export function useSurveyData(activeTab: "field" | "simulated") {
 
             if (!surveyId) return acc;
 
-            // ✅ Perbaiki: parse createdAt sebagai timestamp
             let dateStr = "Tidak Diketahui";
             try {
-              const timestamp = parseInt(item.createdAt, 10); // → 1756453930789
-              if (!isNaN(timestamp)) {
-                const date = new Date(timestamp); // ✅ new Date(1756453930789)
-                dateStr = date.toLocaleDateString("id-ID"); // → "28/8/2025"
+              const date = new Date(item.createdAt);
+              if (!isNaN(date.getTime())) {
+                dateStr = date.toLocaleDateString("id-ID");
               }
             } catch (err) {
-              console.error("❌ Gagal parse timestamp:", item.createdAt, err);
+              console.error("❌ Gagal parse createdAt:", item.createdAt);
             }
 
             if (!acc[surveyId]) {
               acc[surveyId] = {
                 surveyId,
                 date: dateStr,
-                source: item.source,
+                source: "simulated", // ✅ Ini adalah data hasil proses
               };
             }
             return acc;

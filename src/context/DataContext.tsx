@@ -228,6 +228,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // --- 2. Load Layer Definitions ---
+  // --- 2. Load Layer Definitions (HARDCODE untuk 7 layer saja) ---
   const loadLayers = async () => {
     setLoadingLayers(true);
     setErrorLayers(null);
@@ -248,72 +249,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await response.json();
       if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(", "));
 
-      let layersFromDB: LayerDefinition[] = result.data.layerDefinitions || [];
+      const layersFromDB: LayerDefinition[] = result.data.layerDefinitions || [];
 
-      const requiredLayerTypes = ["toponimi_user", "valid_transect_line", "valid_sampling_point", "toponimi", "area_sungai", "batimetri"];
+      // ✅ Daftar layer yang BOLEH muncul di UI
+      const allowedLayerTypes = ["toponimi", "batimetri", "area_sungai", "valid_transect_line", "valid_sampling_point", "toponimi_user", "echosounder_point"];
 
-      layersFromDB = layersFromDB.filter((l) => requiredLayerTypes.includes(l.layerType));
+      // ✅ Filter hanya layer yang diizinkan
+      const filteredLayers = layersFromDB.filter((layer) => allowedLayerTypes.includes(layer.layerType));
 
-      const fullLayerDefinitions: LayerDefinition[] = [
-        {
-          id: "toponimi_user",
-          name: "Toponimi (Input User)",
-          description: "Titik toponimi yang ditambahkan oleh user",
-          layerType: "toponimi_user",
-          source: "manual",
-          meta: { fillColor: "#ef4444", color: "#ef4444", radius: 8, fillOpacity: 0.7 },
-        },
-        {
-          id: "valid_transect_line",
-          name: "Valid Transect Line",
-          description: "Transect yang valid setelah clipping",
-          layerType: "valid_transect_line",
-          source: "process_survey",
-          meta: { color: "#ff0000", weight: 3 },
-        },
-        {
-          id: "valid_sampling_point",
-          name: "Valid Sampling Point",
-          description: "Titik sampling dengan kedalaman",
-          layerType: "valid_sampling_point",
-          source: "process_survey",
-          meta: { fillColor: "#10b981", color: "#10b981", radius: 6, fillOpacity: 0.7 },
-        },
-        {
-          id: "toponimi",
-          name: "Toponimi (Existing)",
-          description: "Rambu atau pelampung dari data existing",
-          layerType: "toponimi",
-          source: "shp_import",
-          meta: {},
-        },
-        {
-          id: "area_sungai",
-          name: "Area Sungai",
-          description: "Polygon area sungai",
-          layerType: "area_sungai",
-          source: "manual",
-          meta: { fillColor: "#3b82f6", color: "#1d4ed8", fillOpacity: 0.3, weight: 2 },
-        },
-        {
-          id: "batimetri",
-          name: "Batimetri",
-          description: "Garis kedalaman",
-          layerType: "batimetri",
-          source: "manual",
-          meta: { color: "#059669", weight: 2, dashArray: "5,5" },
-        },
-      ];
-
-      const merged = fullLayerDefinitions.map((def) => {
-        const fromDB = layersFromDB.find((l) => l.id === def.id);
-        return fromDB ? { ...def, ...fromDB } : def;
+      // ✅ Urutkan sesuai keinginan kamu
+      const orderedLayers = [
+        { layerType: "toponimi", name: "Toponimi" },
+        { layerType: "batimetri", name: "Batimetri" },
+        { layerType: "area_sungai", name: "Area Sungai" },
+        { layerType: "valid_transect_line", name: "Valid Transek" },
+        { layerType: "valid_sampling_point", name: "Valid Sampling Point" },
+        { layerType: "toponimi_user", name: "Toponimi (Input User)" },
+        { layerType: "echosounder_point", name: "Echosounder Point" },
+      ].map((config) => {
+        // Ambil dari DB, jika ada
+        const fromDB = filteredLayers.find((l) => l.layerType === config.layerType);
+        return {
+          id: fromDB?.id || config.layerType,
+          name: fromDB?.name || config.name,
+          description: fromDB?.description || "",
+          layerType: config.layerType,
+          source: fromDB?.source || "",
+          meta: fromDB?.meta || {},
+        };
       });
 
-      setLayerDefinitions([...merged]);
+      setLayerDefinitions(orderedLayers);
 
+      // ✅ Set visibility: semua default true
       const defaultVisibility: LayerVisibilityState = {};
-      merged.forEach((layer) => {
+      orderedLayers.forEach((layer) => {
         defaultVisibility[layer.id] = true;
       });
 

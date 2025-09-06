@@ -5,6 +5,7 @@ import { useData } from "@/context/DataContext";
 import { useTool } from "@/context/ToolContext";
 import * as L from "leaflet";
 import { Feature } from "geojson";
+import * as UTM from "utm"; // ✅ Tambahkan library UTM
 
 // ✅ Helper: Ambil token dari localStorage
 const getAuthToken = () => {
@@ -69,6 +70,25 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
     validSamplingCount: number;
     matchingCount: number;
   } | null>(null);
+
+  // --- FORMAT KOORDINAT ---
+  const [coordFormat, setCoordFormat] = useState<"latlng" | "utm">("latlng");
+
+  // Konversi ke UTM
+  const toUTM = (lng: number, lat: number) => {
+    try {
+      const result = UTM.fromLatLon(lat, lng);
+      return {
+        easting: result.easting,
+        northing: result.northing,
+        zoneNum: result.zoneNum,
+        zoneLetter: result.zoneLetter,
+      };
+    } catch (e) {
+      console.error("Gagal konversi ke UTM:", e);
+      return null;
+    }
+  };
 
   // --- DRAGGABLE ---
   const panelRef = useRef<HTMLDivElement>(null);
@@ -169,14 +189,6 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
         fixedSpacing: mode === "fixedSpacing" ? parseFloat(spacing as any) : null,
       };
 
-      console.log("🚀 handleProcessSurvey dipanggil");
-      console.log("draftId:", draftId, typeof draftId);
-      console.log("mode:", mode);
-      console.log("lineCount:", lineCount, typeof lineCount);
-      console.log("pointCount:", pointCount, typeof pointCount);
-      console.log("spacing:", spacing, typeof spacing);
-      console.log(":variables:", variables);
-
       const requestBody = {
         query: `
           mutation GenerateTransekFromPolygonByDraft(
@@ -201,45 +213,30 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
         variables,
       };
 
-      console.log("📤 Mengirim ke GraphQL:", JSON.stringify(requestBody, null, 2));
-
       const res = await fetch("http://localhost:5000/graphql", {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(requestBody),
       });
 
-      console.log("📡 HTTP Status:", res.status, res.statusText);
-
       const responseText = await res.text();
-      console.log("🔍 Raw Response dari Server:", responseText);
-
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        console.error("❌ Response bukan JSON valid:", responseText);
         throw new Error("Server mengembalikan data tidak valid");
       }
 
-      console.log("✅ Response JSON:", data);
-
       if (data.errors) {
-        console.error("❌ GraphQL Errors:", data.errors);
-        throw new Error(`GraphQL Error: ${data.errors[0].message}`);
+        console.error("GraphQL Errors:", data.errors);
+        throw new Error(data.errors[0].message);
       }
 
       const result = data.data?.generateTransekFromPolygonByDraft;
-
-      if (!result) {
-        console.error("❌ Tidak ada data hasil dari mutation");
-        throw new Error("Tidak ada hasil dari server");
-      }
-
-      console.log("🎯 Hasil Mutation:", result);
+      if (!result) throw new Error("Tidak ada hasil dari server");
 
       if (result.success) {
-        alert("✅ Proses transek dari polygon selesai. Menampilkan hasil...");
+        alert("✅ Proses transek dari polygon selesai.");
         await refreshData();
         setIsDataReady(true);
 
@@ -252,12 +249,9 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
           matchingCount: matching || 0,
         });
       } else {
-        const errorMsg = result.message || "Proses gagal";
-        console.error("❌ Mutation gagal:", errorMsg);
-        alert(`❌ Gagal: ${errorMsg}`);
+        alert(`❌ Gagal: ${result.message || "Proses gagal"}`);
       }
     } catch (err: any) {
-      console.error("❌ Gagal proses transek dari polygon:", err);
       alert(`❌ Gagal: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -267,7 +261,7 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
   // --- HAPUS HASIL SURVEY ---
   const handleDeleteSurveyResult = async () => {
     if (!surveyId) return alert("Belum ada hasil survey.");
-    if (!confirm(`Yakin ingin hapus semua hasil dari survey ini?\nIni akan menghapus transek dan titik sampling.`)) return;
+    if (!confirm("Yakin ingin hapus semua hasil dari survey ini?")) return;
 
     try {
       const res = await fetch("http://localhost:5000/graphql", {
@@ -293,7 +287,7 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
         setDebugInfo(null);
         await refreshData();
       } else {
-        throw new Error(data.data?.deleteSurveyResults.message || "Gagal hapus hasil survey");
+        throw new Error("Gagal hapus hasil survey");
       }
     } catch (err: any) {
       alert(`❌ Gagal: ${err.message}`);
@@ -302,10 +296,7 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
 
   // --- EXPORT KE CSV ---
   const handleExportCSV = async () => {
-    if (!surveyId || !isDataReady) {
-      alert("Data belum siap untuk diekspor.");
-      return;
-    }
+    if (!surveyId || !isDataReady) return alert("Data belum siap untuk diekspor.");
 
     try {
       const res = await fetch("http://localhost:5000/graphql", {
@@ -316,7 +307,6 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
             query GetSamplingPoints($surveyId: String!) {
               samplingPointsBySurveyId(surveyId: $surveyId) {
                 id
-                layerType
                 name
                 description
                 geometry
@@ -332,18 +322,30 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
       const points = data.data?.samplingPointsBySurveyId;
 
       if (!Array.isArray(points) || points.length === 0) {
-        alert("⚠️ Tidak ada titik untuk diekspor.");
-        return;
+        return alert("⚠️ Tidak ada titik untuk diekspor.");
       }
 
-      const headers = ["ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)"];
+      const isUTM = coordFormat === "utm";
+
+      const headers = isUTM ? ["ID", "Survey ID", "Easting", "Northing", "Zone", "Kedalaman (m)", "Jarak dari Awal (m)"] : ["ID", "Survey ID", "Latitude", "Longitude", "Kedalaman (m)", "Jarak dari Awal (m)"];
+
       const rows = points.map((p: any) => {
         const [lng, lat] = p.geometry?.coordinates || ["-", "-"];
-        return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), (p.meta?.kedalaman ?? p.description?.replace("Depth: ", "")).toString(), (p.meta?.distance_m || "-").toString()].join(",");
+        const depth = p.meta?.kedalaman ?? "-";
+        const distance = p.meta?.distance_m ?? "-";
+
+        if (isUTM) {
+          const utm = toUTM(lng, lat);
+          if (!utm) return [p.id, p.meta?.survey_id || "-", "-", "-", "-", depth, distance].join(",");
+          return [p.id, p.meta?.survey_id || "-", utm.easting.toFixed(2), utm.northing.toFixed(2), `${utm.zoneNum}${utm.zoneLetter}`, depth, distance].join(",");
+        } else {
+          return [p.id, p.meta?.survey_id || "-", lat?.toFixed(6), lng?.toFixed(6), depth, distance].join(",");
+        }
       });
 
-      const csv = [headers.join(","), ...rows].join("\n");
-      downloadFile(csv, `${surveyId}.csv`, "text/csv");
+      const csvContent = [headers.join(","), ...rows].join("\n");
+      const filename = isUTM ? `${surveyId}_utm.csv` : `${surveyId}_latlng.csv`;
+      downloadFile(csvContent, filename, "text/csv");
     } catch (err) {
       alert("Gagal ambil data untuk export CSV.");
     }
@@ -351,10 +353,7 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
 
   // --- EXPORT KE KML ---
   const handleExportKML = async () => {
-    if (!surveyId || !isDataReady) {
-      alert("Data belum siap untuk diekspor.");
-      return;
-    }
+    if (!surveyId || !isDataReady) return alert("Data belum siap untuk diekspor.");
 
     try {
       const res = await fetch("http://localhost:5000/graphql", {
@@ -365,7 +364,6 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
             query GetSamplingPoints($surveyId: String!) {
               samplingPointsBySurveyId(surveyId: $surveyId) {
                 id
-                layerType
                 name
                 description
                 geometry
@@ -381,14 +379,13 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
       const points = data.data?.samplingPointsBySurveyId;
 
       if (!Array.isArray(points) || points.length === 0) {
-        alert("⚠️ Tidak ada titik untuk diekspor.");
-        return;
+        return alert("⚠️ Tidak ada titik untuk diekspor.");
       }
 
       let kml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>Sampling Points - ${surveyId}</name>
+    <name>Sampling Points - ${surveyId} (${coordFormat.toUpperCase()})</name>
     <description>Titik sampling dari survei polygon dengan ID: ${surveyId}</description>
 `;
 
@@ -398,22 +395,46 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
         const name = p.name || `Point ${p.id}`;
         const description = p.description || `Kedalaman: ${depth} m`;
 
-        kml += `
+        if (coordFormat === "utm") {
+          const utm = toUTM(lng, lat);
+          if (utm) {
+            kml += `
+    <Placemark>
+      <name>${name}</name>
+      <description>${description} | Easting: ${utm.easting.toFixed(2)}, Northing: ${utm.northing.toFixed(2)}, Zone: ${utm.zoneNum}${utm.zoneLetter}</description>
+      <ExtendedData>
+        <Data name="Easting"><value>${utm.easting.toFixed(2)}</value></Data>
+        <Data name="Northing"><value>${utm.northing.toFixed(2)}</value></Data>
+        <Data name="Zone"><value>${utm.zoneNum}${utm.zoneLetter}</value></Data>
+        <Data name="Depth"><value>${depth}</value></Data>
+      </ExtendedData>
+    </Placemark>
+`;
+          }
+        } else {
+          kml += `
     <Placemark>
       <name>${name}</name>
       <description>${description}</description>
       <Point>
         <coordinates>${lng},${lat},0</coordinates>
       </Point>
+      <ExtendedData>
+        <Data name="Latitude"><value>${lat.toFixed(6)}</value></Data>
+        <Data name="Longitude"><value>${lng.toFixed(6)}</value></Data>
+        <Data name="Depth"><value>${depth}</value></Data>
+      </ExtendedData>
     </Placemark>
 `;
+        }
       });
 
       kml += `
   </Document>
 </kml>`;
 
-      downloadFile(kml, `${surveyId}.kml`, "application/vnd.google-earth.kml+xml");
+      const filename = coordFormat === "utm" ? `${surveyId}_utm.kml` : `${surveyId}_latlng.kml`;
+      downloadFile(kml, filename, "application/vnd.google-earth.kml+xml");
     } catch (err) {
       alert("Gagal ambil data untuk export ke KML.");
     }
@@ -593,22 +614,24 @@ export default function PolygonSurveyPanel({ onClose, drawnPolygon, isDrawing, h
                 </div>
               )}
 
-              {/* Tombol Export: CSV dan KML */}
+              {/* Pilihan Format Koordinat */}
               <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-500 mb-2">📍 Format Koordinat</p>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <button onClick={() => setCoordFormat("latlng")} className={`text-xs py-1.5 px-2 rounded ${coordFormat === "latlng" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"}`}>
+                    Lat/Lng
+                  </button>
+                  <button onClick={() => setCoordFormat("utm")} className={`text-xs py-1.5 px-2 rounded ${coordFormat === "utm" ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700"}`}>
+                    UTM
+                  </button>
+                </div>
+
                 <p className="text-xs text-gray-500 mb-2">📤 Export Data Sampling</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={handleExportCSV}
-                    disabled={!isDataReady}
-                    className={`text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
-                  >
+                  <button onClick={handleExportCSV} disabled={!isDataReady} className={`text-xs py-1.5 px-2 rounded ${isDataReady ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}>
                     📄 CSV
                   </button>
-                  <button
-                    onClick={handleExportKML}
-                    disabled={!isDataReady}
-                    className={`text-xs py-1.5 px-2 rounded transition-opacity ${isDataReady ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}
-                  >
+                  <button onClick={handleExportKML} disabled={!isDataReady} className={`text-xs py-1.5 px-2 rounded ${isDataReady ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}>
                     🌍 KML
                   </button>
                 </div>

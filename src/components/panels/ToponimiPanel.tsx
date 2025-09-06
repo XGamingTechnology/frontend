@@ -11,6 +11,8 @@ interface Icon {
   slug: string;
   category_slug: string;
   category_name: string;
+  is_custom?: boolean;
+  url?: string;
 }
 
 interface ToponimiPanelProps {
@@ -53,6 +55,11 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 🔽 State untuk upload ikon
+  const [customIconFile, setCustomIconFile] = useState<File | null>(null);
+  const [customIconName, setCustomIconName] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -117,19 +124,24 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
       try {
         const res = await fetch("http://localhost:5000/api/toponimi-icons", {
           method: "GET",
-          headers: getAuthHeaders(), // ✅ SUDAH KIRIM AUTHORIZATION
+          headers: getAuthHeaders(),
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
-        const data: unknown = await res.json();
+        const responseData = await res.json();
 
-        if (!Array.isArray(data)) {
-          console.error("Format respons ikon tidak valid", data);
+        if (!Array.isArray(responseData)) {
+          console.error("Format respons ikon tidak valid", responseData);
           return;
         }
 
-        const typedIcons = data as Icon[];
+        // ✅ Proses ikon: bedakan custom dan bawaan
+        const typedIcons = (responseData as Icon[]).map((icon) => ({
+          ...icon,
+          url: icon.is_custom ? `http://localhost:5000/icons/custom/${icon.filename}` : `/icons/${icon.slug}.png`,
+        }));
+
         if (isMounted) {
           setIcons(typedIcons);
           if (typedIcons.length > 0 && !selectedIcon) {
@@ -169,7 +181,10 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
       coordinates: [formLatLng.lng, formLatLng.lat] as [number, number],
     };
 
-    const safeFilename = `${selectedIcon.slug}.png`;
+    // ✅ Gunakan path ikon yang benar
+    const iconPath = selectedIcon.is_custom
+      ? selectedIcon.filename // hanya nama file
+      : `${selectedIcon.slug}.png`; // slug + .png
 
     const variables = {
       layerType: "toponimi_user",
@@ -178,12 +193,11 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
       geometry: pointGeoJSON,
       source: "manual",
       meta: {
-        icon: safeFilename,
+        icon: iconPath,
         category: selectedIcon.category_slug,
+        is_custom: selectedIcon.is_custom, // ✅ FIX: HARUS DITAMBAH!
       },
     };
-
-    console.log("📤 [ToponimiPanel] Mengirim data ke GraphQL:", variables);
 
     try {
       const response = await fetch("http://localhost:5000/graphql", {
@@ -215,15 +229,11 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
       const result = await response.json();
-      console.log("✅ [ToponimiPanel] Response sukses:", result);
 
       if (result.errors) {
-        console.error("❌ GraphQL errors:", result.errors);
         throw new Error(result.errors[0]?.message || "Gagal menyimpan data.");
       }
 
@@ -247,6 +257,53 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
       alert(`Gagal menyimpan: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // ✅ Fungsi Upload Ikon Kustom
+  const handleUploadCustomIcon = async () => {
+    if (!customIconFile || !customIconName) return;
+
+    const formData = new FormData();
+    formData.append("file", customIconFile);
+    formData.append("name", customIconName);
+    formData.append("category_slug", "custom");
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/upload/icon", {
+        method: "POST",
+        body: formData,
+        headers: {
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Upload gagal");
+      }
+
+      const data = await res.json();
+      const newIcon = {
+        ...data.icon,
+        url: `http://localhost:5000/icons/custom/${data.icon.filename}`,
+      };
+
+      // Tambahkan ke daftar ikon
+      setIcons((prev) => [newIcon, ...prev]);
+      setSelectedIcon(newIcon);
+      setCustomIconFile(null);
+      setCustomIconName("");
+      alert("✅ Ikon berhasil diupload!");
+    } catch (err: any) {
+      console.error("❌ Gagal upload ikon:", err);
+      setError(`Upload gagal: ${err.message}`);
+      alert(`Gagal upload: ${err.message}`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -314,7 +371,7 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
               <Tooltip key={icon.id} label={icon.name}>
                 <div onClick={() => setSelectedIcon(icon)} className={`p-1 border-2 rounded cursor-pointer transition ${selectedIcon?.id === icon.id ? "border-blue-500 shadow-sm" : "border-transparent hover:border-gray-300"}`}>
                   <img
-                    src={`/icons/${icon.slug}.png`}
+                    src={icon.url}
                     alt={icon.name}
                     className="w-8 h-8 object-contain"
                     onError={(e) => {
@@ -332,7 +389,7 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
         {selectedIcon && (
           <div className="mt-3 p-3 border rounded bg-gray-50 text-center">
             <img
-              src={`/icons/${selectedIcon.slug}.png`}
+              src={selectedIcon.url}
               alt="Preview ikon terpilih"
               className="w-12 h-12 object-contain mx-auto"
               onError={(e) => {
@@ -341,13 +398,24 @@ export default function ToponimiPanel({ onClose }: ToponimiPanelProps) {
             />
             <p className="text-sm mt-2 font-medium text-gray-800 break-words leading-tight">{selectedIcon.name}</p>
             <p className="text-xs text-gray-500 mt-1 capitalize">Kategori: {selectedIcon.category_name}</p>
-            <p className="text-xs text-green-600 mt-1 font-mono">✅ File: {selectedIcon.slug}.png</p>
+            <p className="text-xs text-green-600 mt-1 font-mono">✅ File: {selectedIcon.filename || `${selectedIcon.slug}.png`}</p>
+            {selectedIcon.is_custom && <p className="text-xs text-blue-600 mt-1">🔖 Ikon Kustom</p>}
           </div>
         )}
 
+        {/* 🔽 Upload Ikon Kustom */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <h4 className="font-semibold text-sm text-gray-800 mb-2">📤 Upload Ikon Kustom</h4>
+          <input type="text" placeholder="Nama ikon" value={customIconName} onChange={(e) => setCustomIconName(e.target.value)} className="w-full text-sm px-3 py-2 border border-gray-300 rounded mb-2" />
+          <input type="file" accept=".png,.svg,.jpg,.jpeg" onChange={(e) => setCustomIconFile(e.target.files?.[0] || null)} className="text-sm mb-2" />
+          <button onClick={handleUploadCustomIcon} disabled={!customIconFile || !customIconName || isUploading} className="text-sm px-4 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400">
+            {isUploading ? "Mengunggah..." : "Upload Ikon"}
+          </button>
+        </div>
+
         {formLatLng && (
-          <div className="text-xs text-gray-500 mt-2">
-            Koordinat: {formLatLng.lat.toFixed(6)}, {formLatLng.lng.toFixed(6)}
+          <div className="text-xs text-gray-500 mt-2 font-mono">
+            📍 {formLatLng.lat.toFixed(6)}, {formLatLng.lng.toFixed(6)}
           </div>
         )}
       </div>

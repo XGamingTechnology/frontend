@@ -66,7 +66,7 @@ export default function SidebarRightControl() {
     }
   }, [activeTab, compareMode]);
 
-  // Hitung jarak untuk cross-section
+  // Hitung jarak untuk cross-section → konversi ke STA
   const allDistances = useMemo(() => {
     return Array.from(
       new Set(
@@ -77,6 +77,12 @@ export default function SidebarRightControl() {
     ).sort((a, b) => a - b);
   }, [allData]);
 
+  // ✅ Format STA: STA-00, STA-01, ...
+  const formatSTA = (distance: number) => {
+    const station = Math.floor(distance / 5);
+    return `STA-${station.toString().padStart(2, "0")}`;
+  };
+
   // Style dinamis
   const containerStyle = {
     width: isFullScreen ? "100vw" : isCollapsed ? 0 : width,
@@ -85,10 +91,11 @@ export default function SidebarRightControl() {
     right: 0,
     top: isFullScreen ? 0 : 80,
     zIndex: 1000,
-    borderLeft: isCollapsed ? "none" : "1px solid #e2e8f0",
+    borderLeft: isCollapsed ? "none" : "1px solid #1e293b",
     overflow: "hidden",
     transition: "width 0.3s ease, height 0.3s ease",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    backgroundColor: "#f8fafc",
   };
 
   // ✅ Ref untuk resize handle
@@ -210,8 +217,8 @@ export default function SidebarRightControl() {
     const isField1 = source1 === "import";
     const isField2 = source2 === "import";
 
-    if (!isField1 && !isField2) return null; // bukan lapangan
-    if (isField1 && isField2) return null; // keduanya lapangan
+    if (!isField1 && !isField2) return null;
+    if (isField1 && isField2) return null;
 
     const fieldId = isField1 ? id1 : id2;
     const simId = isField1 ? id2 : id1;
@@ -237,7 +244,7 @@ export default function SidebarRightControl() {
   }, [compareMode, fieldVsSimulated, selectedSurveyIds]);
 
   return (
-    <div style={containerStyle} className="font-sans">
+    <div style={containerStyle} className="font-sans text-sm">
       {/* Resize Handle */}
       {!isCollapsed && !isFullScreen && (
         <div ref={resizeRef} onMouseDown={handleMouseDown} className="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-blue-400 bg-transparent z-10" style={{ left: "-1px" }} title="Tarik untuk ubah lebar" />
@@ -247,15 +254,15 @@ export default function SidebarRightControl() {
       {!isCollapsed && (
         <div className="flex flex-col h-full bg-gray-50">
           {/* Header */}
-          <div className="bg-white px-5 py-4 border-b border-gray-200 shadow-sm">
+          <div className="bg-white px-5 py-4 border-b border-gray-300 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
                 <span className="text-blue-600 text-lg">📊</span>
-                <span className="tracking-wide">Analisis Profil</span>
+                <span className="tracking-wide font-mono">ANALISIS PROFIL</span>
               </h2>
               <div className="flex items-center gap-2">
                 {/* Mode Compare */}
-                <div className="flex border border-slate-300 rounded text-sm overflow-hidden">
+                <div className="flex border border-slate-400 rounded text-sm overflow-hidden">
                   <button onClick={() => setCompareMode("single")} className={`px-3 py-1 ${compareMode === "single" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
                     Satu Tab
                   </button>
@@ -266,7 +273,7 @@ export default function SidebarRightControl() {
 
                 {/* Tab Switch (hanya aktif di mode single) */}
                 {compareMode === "single" && (
-                  <div className="flex border border-slate-300 rounded text-sm overflow-hidden">
+                  <div className="flex border border-slate-400 rounded text-sm overflow-hidden">
                     <button onClick={() => setActiveTab("field")} className={`px-3 py-1 ${activeTab === "field" ? "bg-blue-500 text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
                       Lapangan
                     </button>
@@ -280,7 +287,7 @@ export default function SidebarRightControl() {
                 <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
 
                 {/* 📸 Screenshot Button */}
-                <button onClick={handleScreenshot} className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 transition shadow-sm" title="Ambil Screenshot Chart">
+                <button onClick={handleScreenshot} className="text-xs px-3 py-1.5 bg-gray-700 text-white rounded hover:bg-gray-800 transition shadow-sm" title="Ambil Screenshot Chart">
                   📸
                 </button>
 
@@ -293,7 +300,7 @@ export default function SidebarRightControl() {
                 </button>
 
                 {/* Collapse */}
-                <button onClick={() => setIsCollapsed(true)} className="text-xs px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                <button onClick={() => setIsCollapsed(true)} className="text-xs px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition">
                   ✕
                 </button>
               </div>
@@ -304,8 +311,8 @@ export default function SidebarRightControl() {
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
             {/* Survey Selector */}
             {compareMode === "single" ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-all hover:shadow-md">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">📋 Pilih Survey ({activeTab === "field" ? "Lapangan" : "Simulasi"})</h3>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-5 transition-all hover:shadow-md">
+                <h3 className="text-sm font-semibold text-gray-800 mb-4 font-mono">📋 PILIH SURVEY ({activeTab === "field" ? "LAPANGAN" : "SIMULASI"})</h3>
                 <SurveySelector
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
@@ -318,8 +325,8 @@ export default function SidebarRightControl() {
             ) : (
               <div className="space-y-6">
                 {/* Survey Lapangan */}
-                <div key="field-selector-wrapper" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">📋 Survey Lapangan</h3>
+                <div key="field-selector-wrapper" className="bg-white rounded-xl shadow-sm border border-gray-300 p-5">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3 font-mono">📋 SURVEY LAPANGAN</h3>
                   <SurveySelector
                     key={`field-selector-${selectedSurveyIds.length}`}
                     activeTab="field"
@@ -341,8 +348,8 @@ export default function SidebarRightControl() {
                 </div>
 
                 {/* Survey Simulasi */}
-                <div key="simulated-selector-wrapper" className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">🧪 Survey Simulasi</h3>
+                <div key="simulated-selector-wrapper" className="bg-white rounded-xl shadow-sm border border-gray-300 p-5">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3 font-mono">🧪 SURVEY SIMULASI</h3>
                   <SurveySelector
                     key={`simulated-selector-${selectedSurveyIds.length}`}
                     activeTab="simulated"
@@ -367,29 +374,29 @@ export default function SidebarRightControl() {
 
             {/* Distance Selector */}
             {viewMode === "cross" && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 transition-all hover:shadow-md">
-                <h3 className="text-sm font-semibold text-gray-800 mb-3">📍 Pilih Jarak untuk Cross-Section</h3>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-5 transition-all hover:shadow-md">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3 font-mono">📍 PILIH STA UNTUK CROSS-SECTION</h3>
                 <DistanceSelector allDistances={allDistances} selectedDistances={selectedDistances} setSelectedDistances={setSelectedDistances} />
               </div>
             )}
 
             {/* Chart Area */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-              <h3 className="text-sm font-semibold text-gray-800 mb-4">{viewMode === "longitudinal" ? "📈 Longitudinal Section" : "🔄 Cross Section"}</h3>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-5">
+              <h3 className="text-sm font-semibold text-gray-800 mb-4 font-mono">{viewMode === "longitudinal" ? "📈 LONGITUDINAL SECTION" : "🔄 CROSS SECTION"}</h3>
 
               {viewMode === "cross" && selectedDistances.length > 0 ? (
                 <div className="space-y-6">
                   {selectedDistances.map((distance) => (
                     <div key={distance} className="chart-container">
-                      <h4 className="text-xs text-gray-600 mb-2">Jarak: {distance} m</h4>
-                      <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-100">
+                      <h4 className="text-xs text-gray-700 mb-2 font-mono">STA: {formatSTA(distance)}</h4>
+                      <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
                         <CrossSectionChart selectedSurveyIds={displaySurveyIds} allData={allData} selectedDistance={distance} />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : viewMode === "longitudinal" ? (
-                <div className="h-72 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-100 chart-container">
+                <div className="h-72 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200 chart-container">
                   {loadingPoints ? (
                     <p className="text-sm text-gray-500 animate-pulse">📊 Memuat data titik...</p>
                   ) : displaySurveyIds.length === 0 ? (
@@ -398,7 +405,7 @@ export default function SidebarRightControl() {
                     <>
                       <LongitudinalChart selectedSurveyIds={displaySurveyIds} allData={allData} />
                       {compareMode === "compare" && fieldVsSimulated && (
-                        <div className="flex gap-4 text-xs mt-2">
+                        <div className="flex gap-4 text-xs mt-2 font-mono">
                           <div className="flex items-center gap-1">
                             <span className="w-3 h-3 bg-blue-500 rounded"></span>
                             <span>{fieldVsSimulated.fieldId.slice(-6)}</span>
@@ -413,20 +420,20 @@ export default function SidebarRightControl() {
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 italic">Pilih jarak untuk cross-section.</p>
+                <p className="text-sm text-gray-400 italic">Pilih STA untuk cross-section.</p>
               )}
             </div>
 
-            {/* ✅ ANALISIS PERUBAHAN (untuk semua mode, jika 2 survey & cross) */}
+            {/* ✅ ANALISIS PERUBAHAN */}
             {selectedSurveyIds.length === 2 && viewMode === "cross" && selectedDistances.length > 0 && (
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-sm">
-                <h4 className="font-medium text-gray-800 mb-4">📊 Perubahan Profil (Cross-Section)</h4>
+                <h4 className="font-medium text-gray-800 mb-4 font-mono">📊 PERUBAHAN PROFIL (CROSS-SECTION)</h4>
 
                 <div className="h-48 mb-4">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={changeData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="distance" tickFormatter={(value) => `${value} m`} />
+                      <XAxis dataKey="distance" tickFormatter={(value) => `${formatSTA(value)}`} />
                       <YAxis
                         domain={[Math.min(...changeData.map((c) => c.diff).filter(Boolean)) - 0.5, Math.max(...changeData.map((c) => c.diff).filter(Boolean)) + 0.5]}
                         ticks={[-3, -2, -1, 0, 1, 2, 3]}
@@ -442,7 +449,7 @@ export default function SidebarRightControl() {
                   <div className="h-32 w-32 mx-auto">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={summaryData} cx="50%" cy="50%" innerRadius={30} outerRadius={45} paddingAngle={2} dataKey="value" nameKey="name" label>
+                        <Pie data={summaryData} cx="50%" cy="50%" innerRadius={30} outerRadius={45} paddingAngle={2} dataKey="value" nameKey="name">
                           {summaryData.map((entry) => (
                             <Cell key={entry.name} fill={entry.color} />
                           ))}
@@ -470,27 +477,25 @@ export default function SidebarRightControl() {
 
                 {differences.length > 0 && (
                   <div className="mt-6 overflow-x-auto">
-                    <h5 className="text-sm font-semibold text-gray-800 mb-2">📋 Tabel Perubahan Per Titik (Offset)</h5>
+                    <h5 className="text-sm font-semibold text-gray-800 mb-2 font-mono">📋 TABEL PERUBAHAN PER TITIK (OFFSET)</h5>
                     <table className="min-w-full text-sm border border-gray-300">
                       <thead>
                         <tr className="bg-gray-100">
-                          <th className="px-3 py-2 border-b text-left text-gray-800">Jarak (m)</th>
-                          <th className="px-3 py-2 border-b text-left text-gray-800">Offset (m)</th>
-                          {/* ✅ Ganti "Survey A" dengan ID asli */}
-                          <th className="px-3 py-2 border-b text-left text-gray-800">Survey {selectedSurveyIds[0]?.slice(-8).toUpperCase() ?? "Survey 1"}</th>
-                          {/* ✅ Ganti "Survey B" dengan ID asli */}
-                          <th className="px-3 py-2 border-b text-left text-gray-800">Survey {selectedSurveyIds[1]?.slice(-8).toUpperCase() ?? "Survey 2"}</th>
-                          <th className="px-3 py-2 border-b text-left text-gray-800">Selisih (m)</th>
+                          <th className="px-3 py-2 border-b text-left text-gray-800 font-mono">STA</th>
+                          <th className="px-3 py-2 border-b text-left text-gray-800 font-mono">Offset (m)</th>
+                          <th className="px-3 py-2 border-b text-left text-gray-800 font-mono">Survey {selectedSurveyIds[0]?.slice(-6) ?? "A"}</th>
+                          <th className="px-3 py-2 border-b text-left text-gray-800 font-mono">Survey {selectedSurveyIds[1]?.slice(-6) ?? "B"}</th>
+                          <th className="px-3 py-2 border-b text-left text-gray-800 font-mono">Selisih (m)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {differences.map((d) => (
                           <tr key={`${d.distance}-${d.offset}`} className="border-b border-gray-200 hover:bg-gray-50">
-                            <td className="px-3 py-2 text-gray-800">{d.distance}</td>
-                            <td className="px-3 py-2 text-gray-800">{d.offset}</td>
-                            <td className="px-3 py-2 text-gray-800">{d.depthA.toFixed(2)}</td>
-                            <td className="px-3 py-2 text-gray-800">{d.depthB.toFixed(2)}</td>
-                            <td className={`px-3 py-2 font-medium ${d.diff > 0 ? "text-green-600" : "text-red-600"}`}>
+                            <td className="px-3 py-2 text-gray-800 font-mono">{formatSTA(d.distance)}</td>
+                            <td className="px-3 py-2 text-gray-800 font-mono">{d.offset}</td>
+                            <td className="px-3 py-2 text-gray-800 font-mono">{d.depthA.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-gray-800 font-mono">{d.depthB.toFixed(2)}</td>
+                            <td className={`px-3 py-2 font-medium font-mono ${d.diff > 0 ? "text-green-600" : "text-red-600"}`}>
                               {d.diff > 0 ? "+" : ""}
                               {d.diff.toFixed(2)}
                             </td>
@@ -503,24 +508,24 @@ export default function SidebarRightControl() {
               </div>
             )}
 
-            {/* ✅ PERBANDINGAN LAPANGAN VS SIMULASI (hanya di mode compare) */}
+            {/* ✅ PERBANDINGAN LAPANGAN VS SIMULASI */}
             {compareMode === "compare" && fieldVsSimulated && (
               <div className="bg-gradient-to-br from-green-50 to-blue-50 p-4 rounded-lg border border-green-200 text-sm shadow-sm">
-                <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
+                <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2 font-mono">
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">🔍</span>
-                  Perbandingan: Lapangan vs Simulasi
+                  PERBANDINGAN: LAPANGAN VS SIMULASI
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">
                   <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">📍 Data Lapangan</p>
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1 font-mono">📍 DATA LAPANGAN</p>
                     <p className="font-mono text-blue-900 text-sm truncate">
                       <strong>ID:</strong> {fieldVsSimulated.fieldId.slice(-8).toUpperCase()}
                     </p>
                   </div>
 
                   <div className="bg-purple-50 p-3 rounded border border-purple-200">
-                    <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-1">🧪 Data Simulasi</p>
+                    <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-1 font-mono">🧪 DATA SIMULASI</p>
                     <p className="font-mono text-purple-900 text-sm truncate">
                       <strong>ID:</strong> {fieldVsSimulated.simId.slice(-8).toUpperCase()}
                     </p>
@@ -528,24 +533,24 @@ export default function SidebarRightControl() {
                 </div>
 
                 <div className="mb-4 p-3 bg-gray-50 rounded border border-gray-200">
-                  <p className="text-sm">
+                  <p className="text-sm font-mono">
                     <strong>📉 Rata-rata perbedaan:</strong>{" "}
                     <span className={Math.abs(fieldVsSimulated.avgDiff) > 0.5 ? "text-red-600 font-bold" : Math.abs(fieldVsSimulated.avgDiff) > 0.2 ? "text-yellow-600 font-bold" : "text-green-600 font-bold"}>
                       {fieldVsSimulated.avgDiff > 0 ? "⬆️" : "⬇️"} {Math.abs(fieldVsSimulated.avgDiff).toFixed(2)} m
                     </span>
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">{fieldVsSimulated.avgDiff > 0 ? "Simulasi lebih dangkal" : fieldVsSimulated.avgDiff < 0 ? "Simulasi lebih dalam" : "Sangat akurat!"}</p>
+                  <p className="text-xs text-gray-600 mt-1 font-mono">{fieldVsSimulated.avgDiff > 0 ? "Simulasi lebih dangkal" : fieldVsSimulated.avgDiff < 0 ? "Simulasi lebih dalam" : "Sangat akurat!"}</p>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">📊 Perbedaan Kedalaman per Offset</h5>
+                  <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1 font-mono">📊 PERBEDAAN KEDALAMAN PER OFFSET</h5>
                   <table className="min-w-full text-xs border border-gray-300 divide-y divide-gray-200">
                     <thead>
                       <tr className="bg-gray-50">
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Offset (m)</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase">Lapangan</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-purple-700 uppercase">Simulasi</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Selisih (m)</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase font-mono">Offset (m)</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-blue-700 uppercase font-mono">Lapangan</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-purple-700 uppercase font-mono">Simulasi</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase font-mono">Selisih (m)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -555,7 +560,7 @@ export default function SidebarRightControl() {
                           <td className="px-3 py-2 text-center font-mono text-blue-700">{d.depthA.toFixed(2)}</td>
                           <td className="px-3 py-2 text-center font-mono text-purple-700">{d.depthB.toFixed(2)}</td>
                           <td
-                            className={`px-3 py-2 font-medium text-center ${
+                            className={`px-3 py-2 font-medium text-center font-mono ${
                               d.diff > 0.5 ? "text-red-600 bg-red-50" : d.diff < -0.5 ? "text-blue-600 bg-blue-50" : d.diff > 0 ? "text-orange-600 bg-orange-50" : d.diff < 0 ? "text-green-600 bg-green-50" : "text-gray-600 bg-gray-100"
                             }`}
                             title={d.diff > 0 ? "Simulasi lebih dangkal" : d.diff < 0 ? "Simulasi lebih dalam" : "Sama"}
@@ -569,7 +574,7 @@ export default function SidebarRightControl() {
                   </table>
                 </div>
 
-                <p className="text-xs text-gray-500 mt-3 italic">
+                <p className="text-xs text-gray-500 mt-3 italic font-mono">
                   💡 Selisih positif (+): simulasi lebih dangkal dari lapangan
                   <br />
                   💡 Selisih negatif (-): simulasi lebih dalam dari lapangan
@@ -579,41 +584,23 @@ export default function SidebarRightControl() {
 
             {/* Statistik */}
             {displaySurveyIds.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 text-sm text-gray-700 space-y-2">
-                <p className="text-gray-800">
-                  <strong>✅ Survey Dipilih:</strong> {displaySurveyIds.length}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-300 p-5 text-sm text-gray-700 space-y-2">
+                <p className="text-gray-800 font-mono">
+                  <strong>✅ SURVEY DIPILIH:</strong> {displaySurveyIds.length}
                 </p>
-                <p className="text-gray-800">
-                  <strong>📊 Total Titik:</strong> {Object.values(allData).flat().length}
+                <p className="text-gray-800 font-mono">
+                  <strong>📊 TOTAL TITIK:</strong> {Object.values(allData).flat().length}
                 </p>
                 {allDistances.length > 0 && (
-                  <p className="text-gray-800">
-                    <strong>📏 Jarak Maks:</strong> {Math.max(...allDistances)} m
+                  <p className="text-gray-800 font-mono">
+                    <strong>📏 STA MAKS:</strong> {formatSTA(Math.max(...allDistances))}
                   </p>
                 )}
               </div>
             )}
-
-            {/* 🔍 Debug Tambahan */}
-            <div className="bg-gray-100 p-3 rounded text-xs space-y-1 mt-4">
-              <p className="text-gray-800">📊 Mode: {compareMode}</p>
-              <p className="text-gray-800">📍 Jarak: {selectedDistances.length}</p>
-              <p className="text-gray-800">👀 View: {viewMode}</p>
-              <p className="text-gray-800">✅ Analisis: {selectedSurveyIds.length === 2 && viewMode === "cross" && selectedDistances.length > 0 ? "YA" : "TIDAK"}</p>
-            </div>
           </div>
         </div>
       )}
-
-      {/* 🔍 Debug Panel */}
-      <div className="fixed bottom-4 right-4 bg-black text-white p-3 rounded text-xs z-50 opacity-80">
-        <p>
-          <strong>Debug:</strong>
-        </p>
-        <p>Mode: {compareMode}</p>
-        <p>Surveys: {selectedSurveyIds.length}</p>
-        <p>Compare: {fieldVsSimulated ? "✅" : "❌"}</p>
-      </div>
     </div>
   );
 }
