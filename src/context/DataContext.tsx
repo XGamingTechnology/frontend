@@ -129,8 +129,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 🔼 State 3D
   const [current3DData, setCurrent3DData] = useState<Survey3DData | null>(null);
 
-  // ✅ State user
-  const [user, setUser] = useState<User | null>(null);
+  // ✅ State user — PERBAIKAN UTAMA: Inisialisasi dari localStorage
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        return JSON.parse(savedUser);
+      }
+    } catch (err) {
+      console.warn("Gagal parse user dari localStorage:", err);
+    }
+    return null;
+  });
 
   // --- Load visibility dari localStorage ---
   useEffect(() => {
@@ -168,19 +179,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [echosounderData]);
 
-  // ✅ Load user dari token
+  // ✅ Sinkronisasi user ke localStorage — PERBAIKAN UTAMA
   useEffect(() => {
-    const loadUser = () => {
+    if (typeof window !== "undefined") {
+      if (user) {
+        try {
+          localStorage.setItem("user", JSON.stringify(user));
+        } catch (err) {
+          console.warn("Gagal simpan user ke localStorage:", err);
+        }
+      } else {
+        localStorage.removeItem("user");
+      }
+    }
+  }, [user]);
+
+  // ✅ Load user dari token (fallback jika localStorage kosong) — PERBAIKAN UTAMA
+  useEffect(() => {
+    const loadUserFromToken = () => {
+      if (user) return; // Jangan timpa jika sudah ada dari localStorage
+
       const token = getAuthToken();
       if (token) {
         try {
           // Decode JWT token
           const payload = JSON.parse(atob(token.split(".")[1]));
-          setUser({
-            id: payload.id,
+          const newUser = {
+            id: payload.userId, // ✅ Pastikan sesuai dengan payload JWT Anda
             role: payload.role,
             email: payload.email,
-          });
+          };
+          setUser(newUser);
         } catch (err) {
           console.warn("Gagal decode token:", err);
           setUser(null);
@@ -190,7 +219,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    loadUser();
+    loadUserFromToken();
   }, []);
 
   // --- Load semua data ---

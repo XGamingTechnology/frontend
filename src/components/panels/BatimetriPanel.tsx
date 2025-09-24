@@ -40,8 +40,6 @@ export default function BatimetriPanel({ onClose, map }: BatimetriPanelProps) {
   // State
   const [selectedSurveyId, setSelectedSurveyId] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
-  // ❌ HAPUS — ganti dengan useMemo
-  // const [batimetriLayers, setBatimetriLayers] = useState<Feature[]>([]);
   const [visibleLayers, setVisibleLayers] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -166,7 +164,7 @@ export default function BatimetriPanel({ onClose, map }: BatimetriPanelProps) {
     return surveyOptions.filter((opt) => opt.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [surveyOptions, searchTerm]);
 
-  // ✅ PERBAIKAN UTAMA: Ganti useEffect → jadi useMemo
+  // ✅ PERBAIKAN UTAMA: Filter layer batimetri berdasarkan selectedSurveyId
   const batimetriLayers = useMemo(() => {
     if (!selectedSurveyId) {
       console.log("ℹ️ [DEBUG] selectedSurveyId kosong, return []");
@@ -189,13 +187,13 @@ export default function BatimetriPanel({ onClose, map }: BatimetriPanelProps) {
 
       const isBatimetriLayer = props.layerType === "kontur_batimetri" || props.layerType === "permukaan_batimetri";
 
-      // ✅ survey_id ada di properties
+      // ✅ PERBAIKAN UTAMA: Cek survey_id di properties
       const matchesSurvey = props.survey_id === selectedSurveyId;
 
       return isBatimetriLayer && matchesSurvey;
     });
 
-    console.log("✅ [DEBUG] Layer hasil generate ditemukan:", layers.length, layers);
+    console.log(`✅ [DEBUG] Layer hasil generate ditemukan untuk survey ${selectedSurveyId}:`, layers.length, layers);
     return layers;
   }, [allFeatures, selectedSurveyId]);
 
@@ -206,7 +204,9 @@ export default function BatimetriPanel({ onClose, map }: BatimetriPanelProps) {
       return;
     }
 
+    // ✅ PERBAIKAN UTAMA: Validasi user.id
     if (!user?.id) {
+      console.error("❌ [DEBUG] user.id tidak tersedia. Token mungkin kadaluarsa atau user belum login.");
       alert("User ID tidak tersedia. Silakan login ulang.");
       return;
     }
@@ -327,7 +327,6 @@ export default function BatimetriPanel({ onClose, map }: BatimetriPanelProps) {
               const newId = e.target.value;
               console.log("🎯 [DEBUG] Survey dipilih:", newId);
               setSelectedSurveyId(newId);
-              // ❌ TIDAK PERLU setBatimetriLayers([]) — karena pakai useMemo
             }}
             className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             style={{ position: "relative", zIndex: 10000, pointerEvents: "auto" }}
