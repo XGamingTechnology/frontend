@@ -1,118 +1,296 @@
 // src/components/panels/SimulasiPanel.tsx
 "use client";
-import { useState, useRef, useEffect } from "react";
+
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useTool } from "@/context/ToolContext";
 
-interface SimulasiPanelProps {
+export default function SimulasiPanel({
+  onClosePanel,
+  setActiveTool,
+  setSurveyMode,
+}: {
   onClosePanel: () => void;
-  setActiveTool: (tool: "simulasi" | "drawline" | "drawpolygon" | null) => void;
+  setActiveTool: (tool: "toponimi" | "rute" | "echosounder" | "simulasi" | "drawline" | "drawpolygon" | null) => void;
   setSurveyMode: (mode: "line" | "polygon" | null) => void;
-}
+}) {
+  const [selectedMode, setSelectedMode] = useState<"line" | "polygon">("line");
+  const [transekType, setTransekType] = useState<"snake" | "parallel" | "manual">("snake");
 
-export default function SimulasiPanel({ onClosePanel, setActiveTool, setSurveyMode }: SimulasiPanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 32, y: 16 }); // default: bottom-right
+  // ✅ Gunakan useCallback agar fungsi stabil
+  const handleStartSimulation = useCallback(() => {
+    console.log("🚀 [SimulasiPanel] handleStartSimulation dipanggil");
+    console.log("📌 Mode terpilih:", selectedMode);
+    console.log("📌 Tipe transek:", transekType);
 
-  // Muat posisi dari localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("simulasiPanelPosition");
-    if (saved) {
-      try {
-        const pos = JSON.parse(saved);
-        setPosition(pos);
-      } catch (e) {
-        console.warn("Gagal baca posisi panel");
+    // ✅ Reset semua flag sebelumnya
+    localStorage.removeItem("transekPolygonMode");
+    localStorage.removeItem("pendingTransekPolygon");
+    console.log("🧹 localStorage transek flag direset");
+
+    if (selectedMode === "line") {
+      console.log("🔧 Set surveyMode: 'line'");
+      setSurveyMode("line");
+
+      console.log("🖌️ Set activeTool: 'drawline'");
+      setActiveTool("drawline");
+    } else if (selectedMode === "polygon") {
+      console.log("🔧 Set surveyMode: 'polygon'");
+      setSurveyMode("polygon");
+
+      console.log("🖌️ Set activeTool: 'drawpolygon'");
+      setActiveTool("drawpolygon");
+
+      // ✅ SET TRANSEK MODE DI LOCALSTORAGE — SEBELUM BUKA PANEL
+      if (transekType === "parallel") {
+        localStorage.setItem("transekPolygonMode", "parallel_centerline");
+        console.log('✅ localStorage "transekPolygonMode" di-set ke: "parallel_centerline"');
+      } else if (transekType === "manual") {
+        localStorage.setItem("transekPolygonMode", "manual_line_only");
+        console.log('✅ localStorage "transekPolygonMode" di-set ke: "manual_line_only"');
+      } else {
+        // Untuk mode snake — tidak perlu set localStorage
+        console.log('ℹ️ Mode "snake" — tidak set localStorage');
       }
+
+      // ✅ KIRIM EVENT KE MAPCOMPONENT — SETELAH LOCALSTORAGE DI-SET
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("open-polygon-parallel-panel", {
+              detail: { mode: transekType === "parallel" ? "parallel_centerline" : transekType === "manual" ? "manual_line_only" : "snake" },
+            })
+          );
+          console.log(`📡 [SimulasiPanel] Event 'open-polygon-parallel-panel' dikirim dengan mode: ${transekType}`);
+        }, 50);
+      }
+    }
+
+    // ✅ TUNDA PENUTUPAN PANEL — AGAR STATE SEMPAT TER-UPDATE
+    setTimeout(() => {
+      console.log("🚪 Menutup panel simulasi...");
+      onClosePanel();
+    }, 100);
+  }, [selectedMode, transekType, setSurveyMode, setActiveTool, onClosePanel]);
+
+  // ✅ Dengarkan event 'transek-finished' — lalu buka panel batimetri
+  useEffect(() => {
+    const handleTransekFinished = () => {
+      console.log("✅ [SimulasiPanel] Menerima event 'transek-finished' — membuka panel batimetri");
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("open-batimetri-panel"));
+          console.log("📡 [SimulasiPanel] Event 'open-batimetri-panel' dikirim");
+        }, 100);
+      }
+    };
+
+    window.addEventListener("transek-finished", handleTransekFinished as EventListener);
+
+    return () => {
+      window.removeEventListener("transek-finished", handleTransekFinished as EventListener);
+    };
+  }, []);
+
+  // ✅ Fungsi baru: Buka Panel Batimetri Langsung
+  const handleOpenBatimetriPanel = useCallback(() => {
+    console.log("✅ [SimulasiPanel] Membuka panel batimetri secara manual");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("open-batimetri-panel"));
+      console.log("📡 [SimulasiPanel] Event 'open-batimetri-panel' dikirim");
     }
   }, []);
 
-  // Simpan posisi ke localStorage
-  const savePosition = (x: number, y: number) => {
-    setPosition({ x, y });
-    localStorage.setItem("simulasiPanelPosition", JSON.stringify({ x, y }));
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // ✅ Hanya tombol kiri mouse (0 = left, 1 = middle, 2 = right)
-    if (e.button !== 0) return;
-
-    if (!panelRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    const offsetX = e.clientX - rect.left;
-    const offsetY = e.clientY - rect.top;
-
-    setIsDragging(true);
-
-    // ✅ Prevent text selection saat drag
-    e.preventDefault();
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const newX = e.clientX - offsetX;
-      const newY = e.clientY - offsetY;
-      savePosition(newX, newY);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  };
-
   return (
     <div
-      ref={panelRef}
-      className="absolute z-[1000] bg-white rounded-xl shadow-xl p-5 w-80 border border-gray-200"
       style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        transform: "translate(0, 0)",
-        willChange: isDragging ? "transform" : "auto",
-        cursor: isDragging ? "grabbing" : "default",
+        position: "absolute",
+        top: "20px",
+        right: "20px",
+        zIndex: 1000,
+        background: "white",
+        padding: "20px",
+        borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        width: "320px",
+        fontFamily: "Segoe UI, sans-serif",
+        fontSize: "14px",
       }}
     >
-      {/* Header sebagai handle drag */}
-      <div
-        className="flex items-center justify-between mb-4 cursor-grab active:cursor-grabbing select-none"
-        onMouseDown={handleMouseDown} // ✅ Hanya header yang bisa drag
-      >
-        <h3 className="text-xl font-bold text-gray-800">⚙️ Pilih Alur</h3>
-        <button onClick={onClosePanel} className="text-gray-500 hover:text-red-500">
-          ✕
+      <h3 style={{ margin: 0, color: "#1e40af", marginBottom: "16px", fontSize: "18px", fontWeight: "600" }}>🛠️ Panel Simulasi</h3>
+
+      <div style={{ marginBottom: "16px" }}>
+        <label style={{ display: "block", fontWeight: "bold", marginBottom: "8px", color: "#374151" }}>Pilih Mode Survei:</label>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 12px",
+              background: selectedMode === "line" ? "#dbeafe" : "#f3f4f6",
+              borderRadius: "6px",
+              cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+          >
+            <input
+              type="radio"
+              name="mode"
+              value="line"
+              checked={selectedMode === "line"}
+              onChange={() => {
+                console.log('🔘 Mode diubah ke: "line"');
+                setSelectedMode("line");
+              }}
+              style={{ cursor: "pointer" }}
+            />
+            <span>📊 Garis Tunggal</span>
+          </label>
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 12px",
+              background: selectedMode === "polygon" ? "#dbeafe" : "#f3f4f6",
+              borderRadius: "6px",
+              cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+          >
+            <input
+              type="radio"
+              name="mode"
+              value="polygon"
+              checked={selectedMode === "polygon"}
+              onChange={() => {
+                console.log('🔘 Mode diubah ke: "polygon"');
+                setSelectedMode("polygon");
+              }}
+              style={{ cursor: "pointer" }}
+            />
+            <span>🔲 Area (Polygon)</span>
+          </label>
+        </div>
+      </div>
+
+      {selectedMode === "polygon" && (
+        <div style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", fontWeight: "bold", marginBottom: "8px", color: "#374151" }}>Tipe Transek:</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {[
+              { value: "snake", label: "Zigzag / Snake (Default)", desc: "Transek berliku otomatis" },
+              { value: "parallel", label: "Garis Lurus Sejajar", desc: "Auto-generate transek lurus" },
+              { value: "manual", label: "Garis Tengah Manual", desc: "Gambar garis tengah sendiri" },
+            ].map((option) => (
+              <label
+                key={option.value}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                  padding: "10px",
+                  background: transekType === option.value ? "#dcfce7" : "#f9fafb",
+                  border: `1px solid ${transekType === option.value ? "#10b981" : "#e5e7eb"}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+                onClick={() => {
+                  console.log(`🔘 Transek type diubah ke: "${option.value}"`);
+                  setTransekType(option.value as any);
+                }}
+              >
+                <input
+                  type="radio"
+                  name="transek"
+                  value={option.value}
+                  checked={transekType === option.value}
+                  onChange={() => {
+                    console.log(`🔘 Transek type diubah ke: "${option.value}"`);
+                    setTransekType(option.value as any);
+                  }}
+                  style={{ marginTop: "3px", cursor: "pointer" }}
+                />
+                <div>
+                  <div style={{ fontWeight: "500", color: "#1f2937" }}>{option.label}</div>
+                  <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>{option.desc}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+        <button
+          onClick={handleStartSimulation}
+          disabled={selectedMode === "polygon" && !transekType}
+          style={{
+            padding: "10px 16px",
+            background: "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: selectedMode === "polygon" && !transekType ? "not-allowed" : "pointer",
+            fontWeight: "600",
+            flex: 1,
+            fontSize: "14px",
+            transition: "background 0.2s",
+            opacity: selectedMode === "polygon" && !transekType ? 0.7 : 1,
+          }}
+          title={selectedMode === "polygon" && !transekType ? "Pilih tipe transek terlebih dahulu" : ""}
+        >
+          ▶️ Mulai Survei
+        </button>
+
+        <button
+          onClick={onClosePanel}
+          style={{
+            padding: "10px 16px",
+            background: "#6b7280",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontWeight: "600",
+            flex: 1,
+            fontSize: "14px",
+            transition: "background 0.2s",
+          }}
+        >
+          ❌ Batal
         </button>
       </div>
 
-      {/* === STEP 1: Pilih Alur === */}
-      <div className="space-y-3">
+      {/* ✅ Tombol Baru: Buka Panel Batimetri */}
+      <div style={{ marginTop: "16px" }}>
         <button
-          onClick={() => {
-            setSurveyMode("line");
-            setActiveTool("drawline");
+          onClick={handleOpenBatimetriPanel}
+          style={{
+            width: "100%",
+            padding: "10px 16px",
+            background: "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontWeight: "600",
+            fontSize: "14px",
+            transition: "background 0.2s",
           }}
-          className="w-full p-4 text-left border border-blue-200 rounded-lg hover:bg-blue-50 transition"
         >
-          <div className="font-semibold text-blue-700">🌊 Transek dari Garis Sungai</div>
-          <div className="text-xs text-gray-600">Gambar garis → transek tegak lurus</div>
-        </button>
-
-        <button
-          onClick={() => {
-            setSurveyMode("polygon");
-            setActiveTool("drawpolygon");
-          }}
-          className="w-full p-4 text-left border border-green-200 rounded-lg hover:bg-green-50 transition"
-        >
-          <div className="font-semibold text-green-700">🟩 Transek dari Area Polygon</div>
-          <div className="text-xs text-gray-600">Gambar area → transek zigzag/grid</div>
+          🗺️ Buka Panel Batimetri
         </button>
       </div>
 
-      {/* Indicator saat dragging */}
-      {isDragging && <div className="absolute inset-0 border-2 border-blue-400 rounded-lg pointer-events-none"></div>}
+      {/* ✅ DEBUG INFO */}
+      <div style={{ marginTop: "16px", padding: "8px", background: "#f0fdf4", borderRadius: "6px", fontSize: "12px", color: "#065f46" }}>
+        <strong>🛠️ Debug Info:</strong>
+        <div>Mode: {selectedMode}</div>
+        {selectedMode === "polygon" && <div>Transek: {transekType}</div>}
+      </div>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import * as L from "leaflet";
 import type { Feature, Geometry, GeoJsonProperties } from "geojson";
 
 // --- Tipe Tool ---
-export type Tool = "toponimi" | "rute" | "echosounder" | "simulasi" | "drawline" | "drawline-transek" | "drawpolygon" | "drawpolygon-transek" | null;
+export type Tool = "toponimi" | "rute" | "echosounder" | "simulasi" | "drawline" | "drawpolygon" | null;
 
 // --- Tipe Mode Survei ---
 type SurveyMode = "line" | "polygon" | null;
@@ -38,9 +38,13 @@ interface ToolContextType {
   showSidebarRight: boolean;
   setShowSidebarRight: (value: boolean) => void;
 
-  // --- 3D PANEL (UI Control Saja) ---
+  // --- 3D PANEL ---
   show3DPanel: boolean;
   setShow3DPanel: (show: boolean) => void;
+
+  // ✅ --- BATIMETRI PANEL ---
+  isBatimetriPanelOpen: boolean;
+  setIsBatimetriPanelOpen: (open: boolean) => void;
 }
 
 const ToolContext = createContext<ToolContextType | undefined>(undefined);
@@ -53,7 +57,10 @@ export function ToolProvider({ children }: { children: ReactNode }) {
   const [routePoints, setRoutePoints] = useState<L.LatLng[]>([]);
   const [selectedFeatures, setSelectedFeatures] = useState<Feature<Geometry, GeoJsonProperties>[]>([]);
   const [showSidebarRight, setShowSidebarRight] = useState(false);
-  const [show3DPanel, setShow3DPanel] = useState(false); // ✅ Cukup kontrol tampil/saja
+  const [show3DPanel, setShow3DPanel] = useState(false);
+
+  // ✅ Tambahkan state untuk Batimetri Panel
+  const [isBatimetriPanelOpen, setIsBatimetriPanelOpen] = useState(false);
 
   return (
     <ToolContext.Provider
@@ -74,6 +81,10 @@ export function ToolProvider({ children }: { children: ReactNode }) {
         setShowSidebarRight,
         show3DPanel,
         setShow3DPanel,
+
+        // ✅ Ekspos state dan setter ke komponen
+        isBatimetriPanelOpen,
+        setIsBatimetriPanelOpen,
       }}
     >
       {children}

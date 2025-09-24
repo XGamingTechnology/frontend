@@ -1,11 +1,11 @@
 // src/components/panels/LineSurveyPanel.tsx
 "use client";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { useData } from "@/context/DataContext";
-import { useTool } from "@/context/ToolContext";
+import { useTool } from "@/context/ToolContext"; // ✅ Import context
 import * as L from "leaflet";
 import { Feature } from "geojson";
-import * as UTM from "utm"; // ✅ Tambahkan library UTM
+import * as UTM from "utm";
 
 // ✅ Helper: Ambil token dari localStorage
 const getAuthToken = () => {
@@ -41,8 +41,9 @@ type Tool = "simulasi" | "drawline" | "drawpolygon" | null;
 interface LineSurveyPanelProps {
   onClose: () => void;
   drawnLine: L.LatLng[];
-  isDrawing: boolean;
-  hasLine: boolean;
+  // ❌ HAPUS — karena tidak reaktif
+  // isDrawing: boolean;
+  // hasLine: boolean;
   onDeleteLine: () => void;
   onSaveDraft: () => void;
   draftId: number | null;
@@ -50,9 +51,24 @@ interface LineSurveyPanelProps {
   setActiveTool: (tool: Tool) => void;
 }
 
-export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine, onDeleteLine, onSaveDraft, draftId, setDraftId, setActiveTool }: LineSurveyPanelProps) {
+export default function LineSurveyPanel({
+  onClose,
+  drawnLine,
+  // ❌ HAPUS — ganti dengan hitung di dalam komponen
+  // isDrawing,
+  // hasLine,
+  onDeleteLine,
+  onSaveDraft,
+  draftId,
+  setDraftId,
+  setActiveTool,
+}: LineSurveyPanelProps) {
   const { refreshData, features } = useData();
-  const { surveyMode } = useTool();
+  const { surveyMode, activeTool } = useTool(); // ✅ Ambil activeTool dari context
+
+  // ✅ Hitung kondisi di sini — agar reaktif!
+  const hasCompletedLine = drawnLine.length >= 2;
+  const isDrawing = activeTool === "drawline";
 
   const [spasi, setSpasi] = useState<number>(100);
   const [panjang, setPanjang] = useState<number>(300);
@@ -120,9 +136,6 @@ export default function LineSurveyPanel({ onClose, drawnLine, isDrawing, hasLine
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
   };
-
-  // Cek apakah garis sudah selesai
-  const hasCompletedLine = drawnLine.length >= 2;
 
   // Reset saat draftId berubah
   useEffect(() => {

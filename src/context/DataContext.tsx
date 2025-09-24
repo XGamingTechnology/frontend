@@ -1,8 +1,8 @@
 // src/context/DataContext.tsx
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, Dispatch, SetStateAction } from "react";
-import type { FeatureCollection, Feature, LineString } from "geojson";
+import React, { createContext, useContext, useState, useEffect, Dispatch, SetStateAction, useMemo } from "react"; // ✅ Tambahkan useMemo
+import type { FeatureCollection, Feature, LineString, Geometry } from "geojson";
 
 // === Tipe Data ===
 export interface EchosounderPoint {
@@ -20,6 +20,14 @@ export interface Point3D {
 export interface Survey3DData {
   surveyId: string;
   points: Point3D[];
+}
+
+// ✅ Tambahkan User interface
+export interface User {
+  id: number;
+  role: string;
+  email: string;
+  // tambahkan field lain jika perlu
 }
 
 interface LayerDefinition {
@@ -69,6 +77,9 @@ interface DataContextType {
   current3DData: Survey3DData | null;
   setCurrent3DData: Dispatch<SetStateAction<Survey3DData | null>>;
   fetchSurvey3DData: (surveyId: string) => Promise<void>;
+
+  // ✅ User — Tambahkan ini
+  user: User | null;
 }
 
 // === Buat Context ===
@@ -118,6 +129,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 🔼 State 3D
   const [current3DData, setCurrent3DData] = useState<Survey3DData | null>(null);
 
+  // ✅ State user
+  const [user, setUser] = useState<User | null>(null);
+
   // --- Load visibility dari localStorage ---
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -153,6 +167,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   }, [echosounderData]);
+
+  // ✅ Load user dari token
+  useEffect(() => {
+    const loadUser = () => {
+      const token = getAuthToken();
+      if (token) {
+        try {
+          // Decode JWT token
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          setUser({
+            id: payload.id,
+            role: payload.role,
+            email: payload.email,
+          });
+        } catch (err) {
+          console.warn("Gagal decode token:", err);
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    loadUser();
+  }, []);
 
   // --- Load semua data ---
   useEffect(() => {
@@ -199,7 +238,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(errorMsg);
       }
 
-      const geojson: FeatureCollection = {
+      const newFeatures: FeatureCollection = {
         type: "FeatureCollection",
         features: result.data.spatialFeatures.map((f: any) => ({
           type: "Feature",
@@ -217,8 +256,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })),
       };
 
-      setFeatures({ ...geojson });
-      updateRiverLineFromFeatures(geojson.features);
+      // ✅ PERBAIKAN UTAMA: Hanya update jika data benar-benar berubah
+      if (JSON.stringify(newFeatures) !== JSON.stringify(features)) {
+        setFeatures(newFeatures);
+        updateRiverLineFromFeatures(newFeatures.features);
+      }
     } catch (err: any) {
       console.error("❌ Gagal ambil spatialFeatures:", err);
       setError(err.message || "Gagal memuat data dari server.");
@@ -228,7 +270,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // --- 2. Load Layer Definitions ---
-  // --- 2. Load Layer Definitions (HARDCODE untuk 7 layer saja) ---
   const loadLayers = async () => {
     setLoadingLayers(true);
     setErrorLayers(null);
@@ -251,19 +292,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const layersFromDB: LayerDefinition[] = result.data.layerDefinitions || [];
 
-      // ✅ Daftar layer yang BOLEH muncul di UI
-      const allowedLayerTypes = ["toponimi", "batimetri", "area_sungai", "valid_transect_line", "valid_sampling_point", "toponimi_user", "echosounder_point"];
+      // ✅ Daftar layer yang BOLEH muncul di UI — termasuk hasil generate batimetri
+      const allowedLayerTypes = [
+        "toponimi",
+        "batimetri",
+        "area_sungai",
+        "valid_transect_line",
+        "valid_sampling_point",
+        "toponimi_user",
+        "echosounder_point",
+        "kontur_batimetri", // ✅ Tambahkan
+        "permukaan_batimetri", // ✅ Tambahkan
+      ];
 
       // ✅ Filter hanya layer yang diizinkan
       const filteredLayers = layersFromDB.filter((layer) => allowedLayerTypes.includes(layer.layerType));
 
-      // ✅ Urutkan sesuai keinginan kamu
+      // ✅ Urutkan sesuai keinginan kamu — tambahkan layer batimetri hasil generate
       const orderedLayers = [
         { layerType: "toponimi", name: "Toponimi" },
-        { layerType: "batimetri", name: "Batimetri" },
         { layerType: "area_sungai", name: "Area Sungai" },
         { layerType: "valid_transect_line", name: "Valid Transek" },
         { layerType: "valid_sampling_point", name: "Valid Sampling Point" },
+        { layerType: "kontur_batimetri", name: "Kontur Batimetri", meta: { color: "#0284c7", weight: 2 } }, // ✅ Tambahkan + styling
+        { layerType: "permukaan_batimetri", name: "Permukaan Batimetri", meta: { fillColor: "#0284c7", fillOpacity: 0.3, color: "#0284c7", weight: 1 } }, // ✅ Tambahkan + styling
+        { layerType: "batimetri", name: "Batimetri" },
         { layerType: "toponimi_user", name: "Toponimi (Input User)" },
         { layerType: "echosounder_point", name: "Echosounder Point" },
       ].map((config) => {
@@ -275,7 +328,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: fromDB?.description || "",
           layerType: config.layerType,
           source: fromDB?.source || "",
-          meta: fromDB?.meta || {},
+          meta: fromDB?.meta || config.meta || {}, // ✅ Gunakan config.meta jika tidak ada di DB
         };
       });
 
@@ -468,6 +521,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- Refresh functions ---
   const refreshData = () => {
+    console.log("🔄 [DataContext] refreshData dipanggil — memicu loadData()");
     loadData();
     setDataVersion((v) => v + 1);
   };
@@ -541,7 +595,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 🔥 AMBIL DATA 3D — FIXED: Pakai simulatedPointsBySurveyId
   // 🔥 AMBIL DATA 3D — UNIVERSAL: Untuk LAPANGAN & SIMULASI
   const fetchSurvey3DData = async (surveyId: string) => {
     console.log("🔧 fetchSurvey3DData dipanggil untuk:", surveyId);
@@ -712,6 +765,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         current3DData,
         setCurrent3DData,
         fetchSurvey3DData,
+        user, // ✅ Tambahkan ini
       }}
     >
       {children}

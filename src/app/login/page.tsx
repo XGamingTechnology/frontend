@@ -46,13 +46,19 @@ export default function LoginPage() {
       const result: LoginResponse = await response.json();
 
       if (result.success) {
-        // ✅ Simpan token dan user
+        // ✅ Simpan token dan user ke localStorage
         localStorage.setItem("authToken", result.token);
         localStorage.setItem("user", JSON.stringify(result.user));
 
-        // ✅ Semua user (admin & user) langsung ke peta
+        // ✅ Arahkan user ke halaman peta
         router.push("/map");
-        router.refresh();
+
+        // 💡 PERBAIKAN UTAMA: Tunggu sebentar, lalu refresh halaman
+        // Ini memastikan semua context (DataContext, ToolContext) diinisialisasi ulang
+        // dengan token yang baru, sehingga request GraphQL tidak lagi 401 Unauthorized.
+        setTimeout(() => {
+          window.location.reload();
+        }, 150); // Tunggu 150ms agar navigasi selesai sebelum reload
       } else {
         setError(result.message || "Login gagal");
       }
