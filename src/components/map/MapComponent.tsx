@@ -1,12 +1,11 @@
 // src/components/map/MapComponent.tsx
 "use client";
-
 import * as L from "leaflet";
 import { MapContainer, TileLayer, ZoomControl, useMap, Marker, Popup, GeoJSON, Polyline, Polygon } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { MutableRefObject, useEffect, useState, useRef, useCallback, useMemo } from "react"; // ✅ Tambahkan useMemo
+import { MutableRefObject, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Map as LeafletMap } from "leaflet";
-import { useTool } from "@/context/ToolContext"; // ✅ Import ToolContext
+import { useTool } from "@/context/ToolContext";
 import { useData } from "@/context/DataContext";
 import ToponimiPanel from "@/components/panels/ToponimiPanel";
 import SimulasiPanel from "@/components/panels/SimulasiPanel";
@@ -16,7 +15,6 @@ import PolygonParallelPanel from "@/components/panels/PolygonParallelPanel";
 import BatimetriPanel from "@/components/panels/BatimetriPanel";
 import MeasureTool from "./MeasureTool";
 import MapLabel from "./MapLabel";
-
 import type { Feature, FeatureCollection, Polygon as GeoJSONPolygon, LineString as GeoJSONLineString } from "geojson";
 import { getAuthHeaders, fetchWithAuth } from "@/lib/apiClient";
 
@@ -28,7 +26,6 @@ const DefaultIcon = L.icon({
   popupAnchor: [0, -12],
   shadowUrl: null,
 });
-
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // --- Simpan referensi map ke ref ---
@@ -50,19 +47,14 @@ function UserLocationMarker({ location }: { location: [number, number] }) {
 }
 
 // --- Hook: Ambil data spatial — DIPERBAIKI — ✅
-// ✅ PERBAIKAN UTAMA: Ganti jadi useMemo untuk hindari infinite loop
 function useSpatialFeatures(layerType?: string | string[], source?: string) {
   const { features: allFeatures } = useData();
-
-  // ✅ Gunakan useMemo agar tidak recreate array setiap render
   const features = useMemo(() => {
     if (!allFeatures || !Array.isArray(allFeatures.features)) {
       console.warn("⚠️ [useSpatialFeatures] allFeatures is undefined or not an array");
       return [];
     }
-
     let filtered: Feature[] = allFeatures.features;
-
     if (layerType) {
       if (Array.isArray(layerType)) {
         filtered = filtered.filter((f) => layerType.includes(f.properties?.layerType));
@@ -70,21 +62,17 @@ function useSpatialFeatures(layerType?: string | string[], source?: string) {
         filtered = filtered.filter((f) => f.properties?.layerType === layerType);
       }
     }
-
     if (source) {
       filtered = filtered.filter((f) => f.properties?.source === source);
     }
-
     return filtered;
-  }, [allFeatures, layerType, source]); // ✅ Dependency stabil
-
-  return { features }; // ✅ JANGAN pakai useState + useEffect
+  }, [allFeatures, layerType, source]);
+  return { features };
 }
 
 // --- Tombol Cetak Peta ---
 function PrintControl() {
   const map = useMap();
-
   const handlePrintMap = () => {
     import("leaflet-image").then(({ default: leafletImage }) => {
       leafletImage(map, (err: any, canvas: HTMLCanvasElement) => {
@@ -92,18 +80,15 @@ function PrintControl() {
           alert("Gagal ambil gambar peta.");
           return;
         }
-
         import("jspdf").then(({ jsPDF }) => {
           const pdf = new jsPDF({
             orientation: "landscape",
             unit: "mm",
             format: "a4",
           });
-
           const imgData = canvas.toDataURL("image/png");
           const imgWidth = 280;
           const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
           pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
           pdf.setFontSize(16);
           pdf.text("Peta Toponimi", 14, 20);
@@ -114,7 +99,6 @@ function PrintControl() {
       });
     });
   };
-
   return (
     <div
       className="leaflet-control leaflet-bar"
@@ -141,16 +125,12 @@ function PrintControl() {
   );
 }
 
-// ✅ HAPUS BatimetriControl — karena sekarang buka via SimulasiPanel atau event
-
-// --- GLOBAL: Tambahkan show3D ke window ---
-declare global {
-  interface Window {
-    show3D: (surveyId: string) => void;
-    editFeature: (id: number | string) => void;
-    deleteFeature: (id: number | string) => void;
-  }
-}
+// ✅ Helper: Dapatkan warna berdasarkan kedalaman
+const getTinColor = (depthMin: number, depthMax: number): string => {
+  const ratio = Math.abs(depthMin) / (Math.abs(depthMin) + Math.abs(depthMax));
+  const lightness = 70 - ratio * 40;
+  return `hsl(200, 80%, ${lightness}%)`;
+};
 
 // ✅ Helper: Dapatkan URL ikon
 const getIconUrl = (meta: any): string => {
@@ -189,15 +169,15 @@ export default function MapComponent({
     terrain: "https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg",
   };
   const tileUrl = tileLayers[basemapType] || tileLayers["osm"];
-
   const { layerDefinitions, layerVisibility, refreshData, deleteFeature, updateFeature } = useData();
-  const { activeTool, setActiveTool, formLatLng, setFormLatLng, showToponimiForm, setShowToponimiForm, routePoints, setRoutePoints, surveyMode, setSurveyMode, isBatimetriPanelOpen, setIsBatimetriPanelOpen } = useTool(); // ✅ Tambahkan state dari ToolContext
+  const { activeTool, setActiveTool, formLatLng, setFormLatLng, showToponimiForm, setShowToponimiForm, routePoints, setRoutePoints, surveyMode, setSurveyMode, isBatimetriPanelOpen, setIsBatimetriPanelOpen } = useTool();
 
   // --- Ambil data ---
   const { features: toponimiFeatures } = useSpatialFeatures("toponimi");
   const { features: userToponimiFeatures } = useSpatialFeatures("toponimi_user");
-  // ✅ PERBAIKAN UTAMA: Ambil layer hasil generate batimetri
-  const { features: batimetriFeatures } = useSpatialFeatures(["kontur_batimetri", "permukaan_batimetri"]);
+  // ✅ HANYA ambil permukaan_batimetri (kontur diabaikan sementara)
+  const { features: batimetriFeatures } = useSpatialFeatures("permukaan_batimetri");
+  const { features: batimetri } = useSpatialFeatures("batimetri");
   const { features: areaSungaiFeatures } = useSpatialFeatures("area_sungai");
   const { features: samplingPointFeatures } = useSpatialFeatures("valid_sampling_point");
   const { features: transectLineFeatures } = useSpatialFeatures("valid_transect_line");
@@ -208,14 +188,8 @@ export default function MapComponent({
   const [drawnPolygon, setDrawnPolygon] = useState<L.LatLng[]>([]);
   const [draftId, setDraftId] = useState<number | null>(null);
   const [polygonDraftId, setPolygonDraftId] = useState<number | null>(null);
-
-  // --- State untuk Polygon Parallel Panel ---
   const [showPolygonParallelPanel, setShowPolygonParallelPanel] = useState(false);
   const polygonParallelPanelRef = useRef<{ handleManualLineDrawn: (line: Feature<GeoJSONLineString>) => void } | null>(null);
-
-  // ❌ HAPUS — karena sekarang pakai state dari ToolContext
-  // const [isBatimetriPanelOpen, setIsBatimetriPanelOpen] = useState(false);
-
   const hasLine = drawnLine.length > 0;
   const hasPolygon = drawnPolygon.length > 0;
 
@@ -238,10 +212,8 @@ export default function MapComponent({
       alert("Garis harus memiliki minimal 2 titik.");
       return;
     }
-
     const lineCoords = drawnLine.map((latlng) => [latlng.lng, latlng.lat]) as [number, number][];
     const geojsonLine = { type: "LineString", coordinates: lineCoords } as const;
-
     try {
       const response = await fetchWithAuth("http://localhost:5000/graphql", {
         method: "POST",
@@ -258,7 +230,6 @@ export default function MapComponent({
           variables: { geom: geojsonLine },
         }),
       });
-
       const data = await response.json();
       if (data.data?.saveRiverLineDraft.success) {
         setDraftId(data.data.saveRiverLineDraft.draftId);
@@ -278,11 +249,9 @@ export default function MapComponent({
       alert("Polygon harus memiliki minimal 3 titik.");
       return null;
     }
-
     const coordinates = [drawnPolygon.map((p) => [p.lng, p.lat])];
     coordinates[0].push(coordinates[0][0]); // tutup polygon
     const geojsonPolygon = { type: "Polygon", coordinates } as const;
-
     try {
       const response = await fetch("http://localhost:5000/graphql", {
         method: "POST",
@@ -300,7 +269,6 @@ export default function MapComponent({
           variables: { geom: geojsonPolygon },
         }),
       });
-
       const data = await response.json();
       if (data.data?.savePolygonDraft.success) {
         const draftId = data.data.savePolygonDraft.draftId;
@@ -323,9 +291,7 @@ export default function MapComponent({
       console.log("✅ [MapComponent] Membuka PolygonParallelPanel dari event:", e.detail);
       setShowPolygonParallelPanel(true);
     };
-
     window.addEventListener("open-polygon-parallel-panel", handleOpenPolygonParallelPanel as EventListener);
-
     return () => {
       window.removeEventListener("open-polygon-parallel-panel", handleOpenPolygonParallelPanel as EventListener);
     };
@@ -335,29 +301,25 @@ export default function MapComponent({
   useEffect(() => {
     const handleTransekFinished = () => {
       console.log("✅ [MapComponent] Menerima event 'transek-finished' — membuka panel batimetri");
-      setIsBatimetriPanelOpen(true); // ✅ Gunakan setter dari ToolContext
+      setIsBatimetriPanelOpen(true);
     };
-
     window.addEventListener("transek-finished", handleTransekFinished as EventListener);
-
     return () => {
       window.removeEventListener("transek-finished", handleTransekFinished as EventListener);
     };
-  }, [setIsBatimetriPanelOpen]); // ✅ Tambahkan dependency
+  }, [setIsBatimetriPanelOpen]);
 
   // ✅ Dengarkan event 'open-batimetri-panel' — dari SimulasiPanel
   useEffect(() => {
     const handleOpenBatimetriPanel = () => {
       console.log("✅ [MapComponent] Menerima event 'open-batimetri-panel' — membuka panel batimetri");
-      setIsBatimetriPanelOpen(true); // ✅ Gunakan setter dari ToolContext
+      setIsBatimetriPanelOpen(true);
     };
-
     window.addEventListener("open-batimetri-panel", handleOpenBatimetriPanel as EventListener);
-
     return () => {
       window.removeEventListener("open-batimetri-panel", handleOpenBatimetriPanel as EventListener);
     };
-  }, [setIsBatimetriPanelOpen]); // ✅ Tambahkan dependency
+  }, [setIsBatimetriPanelOpen]);
 
   // ✅ Reset panel saat surveyMode berubah
   useEffect(() => {
@@ -373,11 +335,9 @@ export default function MapComponent({
     const map = useMap();
     const { activeTool: currentActiveTool } = useTool();
 
-    // ✅ Gunakan useCallback untuk stabilkan handler
     const handleClick = useCallback(
       (e: L.LeafletMouseEvent) => {
         console.log("🖱️ [MapEvents] Click terdeteksi | activeTool:", currentActiveTool);
-
         if (currentActiveTool === "toponimi") {
           setFormLatLng(e.latlng);
           setShowToponimiForm(true);
@@ -405,23 +365,17 @@ export default function MapComponent({
       async (e: L.LeafletMouseEvent) => {
         e.originalEvent.preventDefault();
         const transekMode = localStorage.getItem("transekPolygonMode");
-
         console.log("🖱️ [MapEvents] ContextMenu terdeteksi | activeTool:", currentActiveTool);
         console.log("📌 transekMode:", transekMode);
-
         if (currentActiveTool === "drawpolygon" && drawnPolygon.length >= 3) {
           console.log("✅ [MapEvents] Polygon selesai digambar");
-
           const savedDraftId = await handleSavePolygonDraft();
-
           if (!savedDraftId) {
             alert("❌ Gagal menyimpan draft polygon. Coba lagi.");
             return;
           }
-
           clearDrawnPolygon();
           setActiveTool(null);
-
           if (transekMode === "parallel_centerline") {
             console.log("🔄 [MapEvents] Mode: parallel_centerline → buka PolygonParallelPanel");
             setShowPolygonParallelPanel(true);
@@ -433,26 +387,20 @@ export default function MapComponent({
           }
         } else if (currentActiveTool === "drawline" && drawnLine.length >= 2) {
           console.log("✅ [MapEvents] Garis selesai digambar");
-
           const lineCoords = drawnLine.map((latlng) => [latlng.lng, latlng.lat]) as [number, number][];
           const geojsonLine = {
             type: "Feature",
             geometry: { type: "LineString", coordinates: lineCoords },
             properties: {},
           } as Feature<GeoJSONLineString>;
-
           clearDrawnLine();
           setActiveTool(null);
-
           const isPendingTransek = localStorage.getItem("pendingTransekPolygon") === "true";
-
           if (isPendingTransek) {
             console.log("✅ [MapEvents] Mode paralel aktif — proses transek");
             localStorage.removeItem("pendingTransekPolygon");
-
             setShowPolygonParallelPanel(true);
             console.log("✅ [MapEvents] Panel PolygonParallelPanel diaktifkan");
-
             setTimeout(() => {
               if (polygonParallelPanelRef.current) {
                 console.log("📤 [MapEvents] Mengirim garis ke PolygonParallelPanel...");
@@ -491,7 +439,6 @@ export default function MapComponent({
       map.on("click", handleClick);
       map.on("contextmenu", handleContextMenu);
       map.on("mousemove", handleMouseMove);
-
       return () => {
         map.off("click", handleClick);
         map.off("contextmenu", handleContextMenu);
@@ -525,7 +472,6 @@ export default function MapComponent({
     (window as any).show3D = (surveyId: string) => {
       document.dispatchEvent(new CustomEvent("open-3d-panel", { detail: { surveyId } }));
     };
-
     return () => {
       delete (window as any).editFeature;
       delete (window as any).deleteFeature;
@@ -541,11 +487,8 @@ export default function MapComponent({
         <MapEvents />
         <MapRefSetter mapRef={mapRef} />
         {userLocation && <UserLocationMarker location={userLocation} />}
-
         {/* ✅ Alat Ukur Manual */}
         <MeasureTool />
-
-        {/* ✅ HAPUS BatimetriControl — karena sekarang buka via SimulasiPanel */}
 
         {/* --- RENDER LAYER --- */}
         {layerDefinitions
@@ -555,18 +498,17 @@ export default function MapComponent({
               "valid_transect_line",
               "valid_sampling_point",
               "toponimi",
-              "area_sungai",
               "batimetri",
+              "area_sungai",
               "echosounder_point",
-              "kontur_batimetri", // ✅ Tambahkan
-              "permukaan_batimetri", // ✅ Tambahkan
+              "permukaan_batimetri", // ✅ Hanya TIN
+              // ❌ "kontur_batimetri" dihapus sementara
             ].includes(layer.layerType)
           )
           .map((layer) => {
             const isVisible = layerVisibility[layer.id] ?? false;
             let features: Feature[] = [];
             let pointLayerType = "";
-
             switch (layer.layerType) {
               case "toponimi_user":
                 features = userToponimiFeatures;
@@ -587,18 +529,16 @@ export default function MapComponent({
               case "echosounder_point":
                 features = echosounderPointFeatures;
                 break;
-
-              // ✅ PERBAIKAN UTAMA: Tambahkan case untuk layer batimetri
-              case "kontur_batimetri":
               case "permukaan_batimetri":
-                features = batimetriFeatures.filter((f) => f.properties?.layerType === layer.layerType);
+                features = batimetriFeatures;
                 break;
-
+              case "batimetri":
+                features = batimetri;
+                break;
               default:
                 return null;
             }
 
-            // ✅ Tambahkan validasi array
             if (!isVisible || !Array.isArray(features) || features.length === 0) return null;
 
             // --- Valid Sampling Point ---
@@ -623,7 +563,6 @@ export default function MapComponent({
                     const transectId = metadata.transect_id || props.transect_id || "Unknown";
                     const surveyId = metadata.survey_id || props.survey_id || "-";
                     const featureId = feature.id || props.id || Math.random();
-
                     const popupContent = `
                     <div style="font-family: 'Segoe UI', sans-serif; line-height: 1.4; padding: 12px 16px; border-radius: 8px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 220px;">
                       <div style="background:#1e40af;color:white;padding:8px;border-radius:4px 4px 0 0;font-weight:bold;text-align:center;">Sampling Point</div>
@@ -663,7 +602,6 @@ export default function MapComponent({
                     const props = feature.properties || {};
                     const depth = props.depth_m ?? props.kedalaman ?? "-";
                     const surveyId = props.survey_id || "Unknown";
-
                     const popupContent = `
           <div style="font-family: sans-serif; padding: 8px;">
             <h4 style="margin:0; color:#1e40af;">Echosounder Point</h4>
@@ -700,10 +638,8 @@ export default function MapComponent({
                     const props = feature.properties || {};
                     const meta = props.metadata || props;
                     const [lng, lat] = feature.geometry?.coordinates || [];
-
                     const latDMS = formatToDMS(lat, true);
                     const lngDMS = formatToDMS(lng, false);
-
                     const popupContent = `
           <div style="font-family: 'Segoe UI', sans-serif; line-height: 1.4; padding: 12px 16px; border-radius: 8px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 280px;">
             <div style="background:#1e40af;color:white;padding:8px;border-radius:4px 4px 0 0;font-weight:bold;text-align:center;">${props.name || "Toponimi"}</div>
@@ -764,49 +700,48 @@ export default function MapComponent({
               );
             }
 
-            // --- Batimetri Kontur ---
-            if (layer.layerType === "kontur_batimetri") {
-              return (
-                <GeoJSON
-                  key={`batimetri-kontur-${features.length}`}
-                  data={{ type: "FeatureCollection", features } as FeatureCollection}
-                  style={(feature) => {
-                    const depth = feature?.properties?.depth_value || 0;
-                    const absDepth = Math.abs(depth);
-                    let color = "#10b981"; // hijau — dangkal
-                    if (absDepth > 5) color = "#3b82f6"; // biru — sedang
-                    if (absDepth > 10) color = "#1e40af"; // biru tua — dalam
-                    return {
-                      color: color,
-                      weight: 2,
-                      opacity: 0.8,
-                    };
-                  }}
-                  onEachFeature={(feature, layer) => {
-                    const depth = feature.properties?.depth_value || "-";
-                    layer.bindPopup(`<div style="font-family: sans-serif; padding: 8px;"><strong>Kedalaman:</strong> ${depth} m</div>`);
-                  }}
-                />
-              );
-            }
-
-            // --- Batimetri Permukaan (TIN) ---
+            // ✅ BENAR — gunakan fungsi dinamis
+            // ✅ BENAR — warna dinamis berdasarkan kedalaman
             if (layer.layerType === "permukaan_batimetri") {
               return (
                 <GeoJSON
                   key={`batimetri-permukaan-${features.length}`}
                   data={{ type: "FeatureCollection", features } as FeatureCollection}
-                  style={{
-                    fillColor: "#0284c7",
-                    color: "#0284c7",
-                    fillOpacity: 0.3,
-                    weight: 1,
-                    dashArray: "5,5",
+                  style={(feature) => {
+                    const props = feature?.properties || {};
+                    const depthMin = props.depth_min !== undefined ? parseFloat(props.depth_min) : -1;
+                    const depthMax = props.depth_max !== undefined ? parseFloat(props.depth_max) : -0.1;
+                    const ratio = Math.abs(depthMin) / (Math.abs(depthMin) + Math.abs(depthMax));
+                    const lightness = 70 - ratio * 40;
+                    return {
+                      fillColor: `hsl(200, 80%, ${lightness}%)`,
+                      color: "#0284c7",
+                      fillOpacity: 0.4,
+                      weight: 1,
+                      dashArray: "5,5",
+                    };
+                  }}
+                  onEachFeature={(feature, layer) => {
+                    const props = feature.properties || {};
+                    const depthMin = props.depth_min?.toFixed(2) || "N/A";
+                    const depthMax = props.depth_max?.toFixed(2) || "N/A";
+                    const surveyId = props.survey_id || "N/A";
+                    const pointCount = props.point_count || "N/A";
+                    layer.bindPopup(`
+          <div style="font-family: 'Segoe UI', sans-serif; padding: 12px; max-width: 220px;">
+            <h4 style="margin:0 0 10px 0; color:#1e40af;">Permukaan Batimetri</h4>
+            <p><strong>Survey ID:</strong> ${surveyId}</p>
+            <p><strong>Kedalaman:</strong> ${depthMin} → ${depthMax} m</p>
+            <p><strong>Jumlah Titik:</strong> ${pointCount}</p>
+            <p style="font-size:0.9em; color:#64748b; margin-top:8px;">
+              Klik di luar untuk tutup. Warna merepresentasikan variasi kedalaman.
+            </p>
+          </div>
+        `);
                   }}
                 />
               );
             }
-
             // --- Line & Polygon ---
             return (
               <GeoJSON
@@ -841,15 +776,7 @@ export default function MapComponent({
           })}
 
         {/* --- LABEL DINAMIS --- */}
-        {batimetriFeatures
-          .filter((f) => f.properties?.layerType === "kontur_batimetri")
-          .map((feature) => {
-            if (!feature.geometry || feature.geometry.type !== "Point") return null;
-            const [lng, lat] = feature.geometry.coordinates;
-            const depth = feature.properties?.depth_value || "-";
-            return <MapLabel key={`label-batimetri-${feature.id}`} position={[lat, lng]} text={`${depth} m`} fontSize={11} color="cyan" backgroundColor="rgba(0, 0, 0, 0.6)" padding="2px 6px" borderRadius={3} zIndex={1001} />;
-          })}
-
+        {/* ❌ HAPUS SEMUA LABEL KEDALAMAN SEMENTARA */}
         {areaSungaiFeatures.map((feature) => {
           if (!feature.geometry) return null;
           let lat = 0,
@@ -875,7 +802,6 @@ export default function MapComponent({
 
       {/* --- PANEL --- */}
       {showToponimiForm && <ToponimiPanel onClose={() => setShowToponimiForm(false)} />}
-
       {activeTool === "simulasi" && (
         <SimulasiPanel
           onClosePanel={() => setActiveTool(null)}
@@ -889,7 +815,6 @@ export default function MapComponent({
           clearDrawnPolygon={clearDrawnPolygon}
         />
       )}
-
       {surveyMode === "line" && (
         <LineSurveyPanel
           onClose={() => {
@@ -908,10 +833,8 @@ export default function MapComponent({
           setActiveTool={setActiveTool}
         />
       )}
-
       {surveyMode === "polygon" && (
         <>
-          {/* ✅ ALUR PARALEL */}
           {localStorage.getItem("transekPolygonMode") === "parallel_centerline" && showPolygonParallelPanel && (
             <PolygonParallelPanel
               ref={polygonParallelPanelRef}
@@ -932,8 +855,6 @@ export default function MapComponent({
               setActiveTool={setActiveTool}
             />
           )}
-
-          {/* ✅ ALUR DEFAULT (ZIGZAG/SNAKE) */}
           {!localStorage.getItem("transekPolygonMode") && (
             <PolygonSurveyPanel
               onClose={() => {
@@ -954,8 +875,6 @@ export default function MapComponent({
           )}
         </>
       )}
-
-      {/* ✅ PANEL BATIMETRI — HANYA RENDER JIKA isBatimetriPanelOpen = true */}
       {isBatimetriPanelOpen && mapRef.current && <BatimetriPanel onClose={() => setIsBatimetriPanelOpen(false)} map={mapRef.current} />}
     </>
   );
